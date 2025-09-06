@@ -26,4 +26,4 @@ MUSIC_ASSETS_PATH = os.path.join(ASSETS_PATH, 'music')
 
 # --- OAuth Redirect URI (read from environment) ---
 # Defaults to localhost if not set in the environment
-LINKEDIN_REDIRECT_URI = os.getenv("LINKEDIN_REDIRECT_URI", "http://localhost:8501")```
+LINKEDIN_REDIRECT_URI = os.getenv("LINKEDIN_REDIRECT_URI", "http://localhost:8501")
