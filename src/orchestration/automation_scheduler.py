@@ -1,17 +1,18 @@
 # src/orchestration/automation_scheduler.py
 
+import schedule
+import time
+import json
 import os
-# ... other imports
 import logging
+import threading
 from src.config import DATA_PATH
+
 
 LOG_FILE = os.path.join(DATA_PATH, 'automation.log')
 
-# --- THIS IS THE ROBUST FIX ---
-# First, ensure the directory (/data) exists.
-# The exist_ok=True flag prevents an error if the directory already exists.
+
 os.makedirs(DATA_PATH, exist_ok=True)
-# Then, ensure the log file itself exists.
 open(LOG_FILE, 'a').close()
 
 logging.basicConfig(filename=LOG_FILE, level=logging.INFO,
@@ -25,7 +26,6 @@ class AutomationScheduler:
     def __init__(self, youtube_service):
         self.youtube_service = youtube_service
         
-        # State files are stored in the persistent data directory
         self.settings_file = os.path.join(DATA_PATH, 'automation_settings.json')
         self.stats_file = os.path.join(DATA_PATH, 'automation_stats.json')
         
