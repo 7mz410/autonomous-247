@@ -2,6 +2,7 @@
 
 import os
 # ... other imports
+import logging
 from src.config import DATA_PATH
 
 LOG_FILE = os.path.join(DATA_PATH, 'automation.log')
