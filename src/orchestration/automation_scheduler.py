@@ -11,6 +11,7 @@ from src.config import DATA_PATH
 
 # Configure logging to save to the persistent data path
 LOG_FILE = os.path.join(DATA_PATH, 'automation.log')
+open(LOG_FILE, 'a').close()
 logging.basicConfig(filename=LOG_FILE, level=logging.INFO, 
                     format='%(asctime)s - %(levelname)s - %(message)s')
 
