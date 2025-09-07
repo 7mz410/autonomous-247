@@ -1,18 +1,19 @@
 # src/orchestration/automation_scheduler.py
 
-import schedule
-import time
-import json
 import os
-import threading
-import logging
-from datetime import datetime
+# ... other imports
 from src.config import DATA_PATH
 
-# Configure logging to save to the persistent data path
 LOG_FILE = os.path.join(DATA_PATH, 'automation.log')
+
+# --- THIS IS THE ROBUST FIX ---
+# First, ensure the directory (/data) exists.
+# The exist_ok=True flag prevents an error if the directory already exists.
+os.makedirs(DATA_PATH, exist_ok=True)
+# Then, ensure the log file itself exists.
 open(LOG_FILE, 'a').close()
-logging.basicConfig(filename=LOG_FILE, level=logging.INFO, 
+
+logging.basicConfig(filename=LOG_FILE, level=logging.INFO,
                     format='%(asctime)s - %(levelname)s - %(message)s')
 
 class AutomationScheduler:
