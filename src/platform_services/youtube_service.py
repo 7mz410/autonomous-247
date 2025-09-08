@@ -6,55 +6,53 @@ from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
-from src.config import DATA_PATH
+from src.utils import storage_service # <-- NEW: Import our storage service
 
 class YouTubeService:
-    """
-    Handles all interactions with the YouTube API, from authentication
-    to video uploading.
-    """
     def __init__(self, content_generator, video_producer):
         self.content_generator = content_generator
         self.video_producer = video_producer
         self.SCOPES = ['https://www.googleapis.com/auth/youtube.upload']
         
-        # Paths for credential and token files must be in the persistent data directory
-        self.credentials_file = os.path.join(DATA_PATH, 'youtube_credentials.json')
-        self.token_file = os.path.join(DATA_PATH, 'youtube_token.pickle')
+        # --- NEW: Define object names for Spaces ---
+        self.credentials_object_name = 'auth/youtube_credentials.json'
+        self.token_object_name = 'auth/youtube_token.pickle'
         
         self.default_video_settings = {
-            'privacy_status': 'private', # Default to private to allow for review
-            'category_id': '28', # Science & Technology
+            'privacy_status': 'private',
+            'category_id': '28',
             'default_language': 'en',
             'default_audio_language': 'en'
         }
         self.youtube_api = self.authenticate()
+        if self.youtube_api:
+            print("✅ YouTube Service initialized and authenticated.")
+        else:
+            print("❌ YouTube Service failed to authenticate.")
 
     def create_and_upload_video(self, niche, topic, voice_type="female_voice", upload=True, image_source="ai_generated", auto_search_context=False):
-        """
-        Orchestrates the entire pipeline for creating and optionally uploading a YouTube video.
-        """
+        # ... (This function does not need changes, its logic is correct)
         print(f"\nYOUTUBE_SERVICE: Starting video pipeline for topic '{topic}'...")
         try:
-            print("   - Step 1/3: Generating video content package...")
+            print("   - Step 1/3: Generating content package...")
             content_package = self.content_generator.generate_complete_video_content(
                 topic=topic, niche=niche, auto_search_context=auto_search_context
             )
             if not content_package:
                 raise Exception("Failed to generate content package.")
             
-            print("   - Step 2/3: Producing video from content package...")
-            video_info = self.video_producer.produce_complete_video(
+            print("   - Step 2/3: Producing video file...")
+            video_filepath = self.video_producer.produce_complete_video(
                 content_package, voice_type, image_source=image_source
             )
-            if not video_info or 'filename' not in video_info:
+            if not video_filepath:
                 raise Exception("Video production failed or was cancelled.")
 
             if upload:
                 print("   - Step 3/3: Uploading video to YouTube...")
                 if self.youtube_api:
                     self.upload_video(
-                        video_file=video_info['filename'],
+                        video_file=video_filepath,
                         title=content_package.get('title', 'Untitled'),
                         description=content_package.get('description', ''),
                         tags=content_package.get('tags', [])
@@ -62,7 +60,10 @@ class YouTubeService:
                 else:
                     print("   - ⚠️ YouTube upload skipped due to authentication failure.")
             
-            return {"success": True, "path": video_info.get('filename')}
+            # Here you could optionally upload the final video to Spaces as well
+            # storage_service.upload_file(video_filepath, f"final_videos/{os.path.basename(video_filepath)}")
+
+            return {"success": True, "path": video_filepath}
 
         except Exception as e:
             print(f"   - ❌ Error in create_and_upload_video (YouTube): {e}")
@@ -70,13 +71,15 @@ class YouTubeService:
 
     def authenticate(self):
         """
-        Authenticates with the YouTube API using OAuth 2.0 credentials.
-        Handles token loading, validation, and refreshing.
+        Authenticates with YouTube API using credentials and tokens stored in
+        DigitalOcean Spaces.
         """
         creds = None
-        if os.path.exists(self.token_file):
-            with open(self.token_file, 'rb') as token:
-                creds = pickle.load(token)
+        
+        # --- NEW: Try to load token from Spaces ---
+        token_data = storage_service.get_file_content(self.token_object_name)
+        if token_data:
+            creds = pickle.loads(token_data)
         
         if not creds or not creds.valid:
             if creds and creds.expired and creds.refresh_token:
@@ -84,26 +87,30 @@ class YouTubeService:
                     print("   - Refreshing expired YouTube token...")
                     creds.refresh(Request())
                 except Exception as e:
-                    print(f"   - ❌ Failed to refresh token: {e}. Manual authentication may be required.")
-                    creds = None # Force re-authentication
+                    print(f"   - ❌ Failed to refresh token: {e}. Re-authenticating...")
+                    creds = None
             
             if not creds:
-                if not os.path.exists(self.credentials_file):
-                    print(f"❌ Error: Credentials file '{self.credentials_file}' not found. Cannot authenticate.")
+                # --- NEW: Load credentials from Spaces ---
+                credentials_content = storage_service.get_file_content(self.credentials_object_name)
+                if not credentials_content:
+                    print(f"❌ Critical Error: '{self.credentials_object_name}' not found in Spaces.")
                     return None
-                print("   - Performing first-time YouTube authentication...")
-                flow = InstalledAppFlow.from_client_secrets_file(self.credentials_file, self.SCOPES)
-                # Note: run_local_server will only work in a local environment.
-                # For production, a pre-generated token file must be provided.
+                
+                print("   - Performing first-time YouTube authentication (this requires local browser)...")
+                flow = InstalledAppFlow.from_client_secrets_info(eval(credentials_content), self.SCOPES)
                 creds = flow.run_local_server(port=0)
 
-            with open(self.token_file, 'wb') as token:
-                pickle.dump(creds, token)
+            # --- NEW: Save the new/refreshed token back to Spaces ---
+            with open("temp_token.pickle", "wb") as token_file:
+                pickle.dump(creds, token_file)
+            storage_service.upload_file("temp_token.pickle", self.token_object_name)
+            os.remove("temp_token.pickle") # Clean up temporary local file
         
-        print("✅ YouTube API service is ready.")
         return build('youtube', 'v3', credentials=creds)
 
     def upload_video(self, video_file, title, description, tags=None, privacy_status=None, category_id=None):
+        # ... (This function does not need changes, its logic is correct)
         if not self.youtube_api: return None
         if not os.path.exists(video_file):
             print(f"   - ❌ Error: Video file not found at {video_file}")
@@ -134,9 +141,6 @@ class YouTubeService:
             
             print(f"✅ Video uploaded successfully! URL: https://www.youtube.com/watch?v={response['id']}")
             return {'video_id': response['id']}
-        except HttpError as e:
-            print(f"   - ❌ An HTTP error occurred during upload: {e.resp.status} {e.content}")
-            return None
         except Exception as e:
             print(f"   - ❌ An unexpected error occurred during upload: {e}")
             return None

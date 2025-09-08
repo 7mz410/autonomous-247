@@ -2,20 +2,16 @@
 
 import os
 import json
+import tempfile
 from datetime import datetime
 from openai import OpenAI
-from src.config import OPENAI_API_KEY, DATA_PATH
+from src.config import OPENAI_API_KEY
+from src.utils import storage_service
 
 class ContentGeneratorService:
-    """
-    Handles all interactions with the OpenAI API to generate various types
-    of text content, from video scripts to social media captions.
-    """
     def __init__(self, web_search_service):
         self.web_search_service = web_search_service
-        self.content_path = os.path.join(DATA_PATH, "generated_content")
-        os.makedirs(self.content_path, exist_ok=True)
-
+        
         if not OPENAI_API_KEY or "sk-proj-" not in OPENAI_API_KEY:
             self.client = None
             print("❌ Critical Error: OPENAI_API_KEY not found or is invalid.")
@@ -28,10 +24,8 @@ class ContentGeneratorService:
             print(f"❌ Critical Error configuring OpenAI client: {e}")
 
     def create_astrology_caption(self, astro_data: dict) -> str:
-        """
-        Takes raw astrology data and uses GPT-4o to create an engaging
-        Instagram caption and relevant hashtags, returned as a single string.
-        """
+        # This function does not save files, so no changes are needed here.
+        # ... (original code is fine)
         print("   - ✍️ Crafting an engaging astrology caption...")
         prompt = f"""
         You are an expert social media manager for an astrology brand. Your tone is mystical, positive, and insightful.
@@ -62,11 +56,8 @@ class ContentGeneratorService:
             print(f"   - ❌ Error generating caption: {e}. Falling back to default.")
             return f"{astro_data.get('description')}\n\n#astrology #horoscope #{astro_data.get('sign')}"
 
+
     def generate_complete_video_content(self, topic, niche="Technology", auto_search_context=False):
-        """
-        Generates a full content package for a YouTube video, including title,
-        description, tags, script, and image prompts.
-        """
         context = None
         if auto_search_context:
             context = self.web_search_service.search_and_extract_context(topic)
@@ -77,18 +68,27 @@ class ContentGeneratorService:
         prompt = f"You are an expert-level YouTube scriptwriter for a '{niche}' channel. Generate a complete content package for a video on: '{topic}'."
         if context:
             prompt += f"\n\n*** CRITICAL INSTRUCTION ***\nYou MUST base your script, title, and image prompts on the following context. Use this text as your single source of truth.\n\nCONTEXT:\n---\n{context[:4000]}\n---"
-        prompt += '\nThe final output MUST be a single, valid JSON object with these exact keys: "title", "description", "tags", "script", "image_prompts".\n- "script": A detailed script with a Hook, Intro, Main Body, and Conclusion.\n- "image_prompts": A list of 5-7 descriptive prompts for image generation or web search.'
+        prompt += '\nThe final output MUST be a single, valid JSON object with these exact keys: "title", "description", "tags", "script", "image_prompts".'
 
         json_string = self._generate_content_with_openai(prompt)
         if not json_string:
             return None
         try:
             content_data = json.loads(json_string)
+            
+            # --- NEW: Save content to a temporary local file ---
+            with tempfile.NamedTemporaryFile(delete=False, mode='w', suffix=".json", encoding='utf-8') as temp_file:
+                json.dump(content_data, temp_file, ensure_ascii=False, indent=2)
+                local_path = temp_file.name
+
+            # --- NEW: Upload the content file to Spaces for archival ---
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = os.path.join(self.content_path, f"youtube_content_{timestamp}.json")
-            with open(filename, 'w', encoding='utf-8') as f:
-                json.dump(content_data, f, ensure_ascii=False, indent=2)
-            print(f"✅ Deep content generated and saved to {filename}")
+            object_name = f"generated_content/youtube_content_{timestamp}.json"
+            storage_service.upload_file(local_path, object_name)
+
+            os.remove(local_path) # Clean up the temporary file
+
+            print(f"✅ Deep content generated and archived to Spaces.")
             return content_data
         except json.JSONDecodeError as e:
             print(f"❌ CRITICAL ERROR: Failed to parse JSON from OpenAI. Error: {e}")
@@ -113,7 +113,7 @@ class ContentGeneratorService:
             return None
 
     def generate_social_post_content(self, topic, niche, platform="LinkedIn"):
-        # This is a placeholder and can be expanded similarly to the other methods.
+        # This is a placeholder and can be expanded.
         print(f"   - Generating placeholder content for {platform}...")
         return {
             "post_text": f"This is a post about {topic} in the {niche} field.",

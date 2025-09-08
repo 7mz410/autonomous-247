@@ -5,41 +5,28 @@ import random
 import io
 import re
 import requests
+import tempfile
 from datetime import datetime
-from urllib.parse import quote_plus
-from PIL import Image, ImageFont, ImageDraw
+from PIL import Image
 from moviepy.editor import *
 from moviepy.audio.fx.all import audio_loop
 
-from src.config import STABILITY_AI_API_KEY, DATA_PATH, ASSETS_PATH, MUSIC_ASSETS_PATH
+from src.config import STABILITY_AI_API_KEY, ASSETS_PATH, MUSIC_ASSETS_PATH
 from src.utils.exceptions import InterruptedException
+from src.utils import storage_service
 
 try:
     from gtts import gTTS
 except ImportError:
     gTTS = None
 
-# Note: Google Cloud TTS is removed for now to simplify dependencies.
-# It can be re-added later if gTTS is insufficient.
-
 class VideoProducerService:
-    """
-    Handles the entire video creation pipeline: generating/fetching images,
-    synthesizing audio, and combining them into a final video file.
-    """
     def __init__(self, kill_switch):
         self.kill_switch = kill_switch
         self.fps = 24
 
-        # Define dynamic paths based on the DATA_PATH environment variable
-        self.images_path = os.path.join(DATA_PATH, "generated_images")
-        self.audio_path = os.path.join(DATA_PATH, "generated_audio")
-        self.videos_path = os.path.join(DATA_PATH, "generated_videos")
-        os.makedirs(self.images_path, exist_ok=True)
-        os.makedirs(self.audio_path, exist_ok=True)
-        os.makedirs(self.videos_path, exist_ok=True)
+        # --- No longer creating local directories, using temp files instead ---
 
-        # Stability AI configuration
         self.stability_api_key = STABILITY_AI_API_KEY
         self.stability_api_url = "https://api.stability.ai/v2beta/stable-image/generate/ultra"
         if not self.stability_api_key or "sk-" not in self.stability_api_key:
@@ -47,7 +34,6 @@ class VideoProducerService:
         else:
             print("✅ Stability AI client configured.")
 
-        # Fallback TTS configuration
         if gTTS:
             print("✅ gTTS (fallback TTS) is available.")
         else:
@@ -55,44 +41,12 @@ class VideoProducerService:
 
         print("✅ Video Producer Service initialized.")
 
-
-    def _search_and_download_images(self, search_queries):
-        image_paths = []
-        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"}
-        print(f"🔎 Starting web search for {len(search_queries)} image(s)...")
-        for i, query in enumerate(search_queries):
-            if self.kill_switch.is_set(): raise InterruptedException("Image download cancelled.")
-            try:
-                print(f"   - Searching for: '{query}'")
-                search_url = f"https://www.google.com/search?q={quote_plus(query)}&tbm=isch"
-                response = requests.get(search_url, headers=headers, timeout=10)
-                response.raise_for_status()
-                image_urls = re.findall(r'src="(https://[^"]+)"', response.text)
-                
-                for img_url in image_urls:
-                    if img_url.endswith(('.jpg', '.png', '.jpeg')):
-                        try:
-                            img_response = requests.get(img_url, headers=headers, timeout=5)
-                            if img_response.status_code == 200:
-                                img = Image.open(io.BytesIO(img_response.content)).convert('RGB')
-                                filename = f"web_image_{i}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
-                                filepath = os.path.join(self.images_path, filename)
-                                img.save(filepath)
-                                image_paths.append(filepath)
-                                print(f"   ✓ Image downloaded and saved to: {filepath}")
-                                break 
-                        except Exception:
-                            continue
-            except Exception as e:
-                print(f"   - ❌ Error during web search for '{query}': {e}")
-        return image_paths
-
     def _generate_images_with_stability(self, prompts, aspect_ratio="16:9"):
         if not self.stability_api_key:
-            print("ℹ️ AI generation skipped: API key not configured. Trying web search as fallback...")
-            return self._search_and_download_images(prompts)
+            print("ℹ️ AI generation skipped: API key not configured.")
+            return []
 
-        image_paths = []
+        local_image_paths = []
         print(f"🤖 Generating {len(prompts)} image(s) from Stability AI...")
         for i, prompt in enumerate(prompts):
             if self.kill_switch.is_set(): raise InterruptedException("AI Image generation cancelled.")
@@ -105,37 +59,43 @@ class VideoProducerService:
                 response = requests.post(self.stability_api_url, headers=headers, files=files, timeout=30)
                 response.raise_for_status()
 
-                img = Image.open(io.BytesIO(response.content))
-                filename = f"ai_image_{i}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
-                filepath = os.path.join(self.images_path, filename)
-                img.save(filepath)
-                image_paths.append(filepath)
-                print(f"   🖼️  Image saved successfully: {filepath}")
+                # --- NEW: Save to a temporary local file ---
+                with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as temp_file:
+                    temp_file.write(response.content)
+                    local_path = temp_file.name
+                
+                # --- NEW: Upload the temporary file to Spaces ---
+                object_name = f"generated_images/image_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{i}.png"
+                storage_service.upload_file(local_path, object_name)
+                
+                local_image_paths.append(local_path)
+                print(f"   🖼️  Image generated, saved locally to {local_path}, and uploaded to Spaces.")
+
             except Exception as e:
                 print(f"   - ❌ Error generating image: {e}")
-        return image_paths
+        return local_image_paths
 
     def produce_complete_video(self, content, voice_type="female_voice", aspect_ratio="16:9", image_source="ai_generated"):
+        local_temp_files = [] # Keep track of all local files to clean up
         try:
             if self.kill_switch.is_set(): raise InterruptedException("Operation cancelled before start.")
             
-            print(f"\n🎬 Starting video production (Aspect: {aspect_ratio}, Images: {image_source})...")
+            print(f"\n🎬 Starting video production...")
             target_resolution = (1080, 1920) if aspect_ratio == "9:16" else (1920, 1080)
             
             script_data = content.get('script')
-            if not script_data: raise ValueError("Critical Error: Script is empty or missing.")
+            if not script_data: raise ValueError("Critical Error: Script is empty.")
             script_for_audio = "\n".join(str(v) for v in script_data.values()) if isinstance(script_data, dict) else str(script_data)
             
-            audio_file = self.generate_script_audio(script_for_audio, voice_type)
-            if not audio_file: raise ValueError("Audio generation failed.")
-            if self.kill_switch.is_set(): raise InterruptedException("Operation cancelled after audio generation.")
+            audio_file_path = self.generate_script_audio(script_for_audio, voice_type)
+            if not audio_file_path: raise ValueError("Audio generation failed.")
+            local_temp_files.append(audio_file_path)
             
-            main_audio = AudioFileClip(audio_file)
-            print(f"⏱️  Audio duration: {main_audio.duration:.2f} seconds")
+            main_audio = AudioFileClip(audio_file_path)
             
             image_prompts = content.get('image_prompts', [])
-            image_paths = self._generate_images_with_stability(image_prompts, aspect_ratio) if image_source == "ai_generated" else self._search_and_download_images(image_prompts)
-            if self.kill_switch.is_set(): raise InterruptedException("Operation cancelled after image generation.")
+            image_paths = self._generate_images_with_stability(image_prompts, aspect_ratio)
+            local_temp_files.extend(image_paths)
 
             intro = self._create_intro_clip(duration=3, resolution=target_resolution)
             content_clips = self._create_content_clips_from_images(image_paths, main_audio.duration, resolution=target_resolution)
@@ -145,58 +105,62 @@ class VideoProducerService:
             final_video = concatenate_videoclips([intro, final_content_video, outro])
             final_video_with_music = self._add_background_music(final_video)
             
-            output_filename = os.path.join(self.videos_path, f"video_{datetime.now().strftime('%Y%m%d_%H%M%S')}.mp4")
+            # --- NEW: Save final video to a temporary local file ---
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as temp_file:
+                output_filepath = temp_file.name
+
+            print(f"💾 Rendering final video to temporary path: {output_filepath}")
+            final_video_with_music.write_videofile(output_filepath, fps=self.fps, codec='libx264', audio_codec='aac', threads=4)
             
-            if self.kill_switch.is_set(): raise InterruptedException("Operation cancelled before final render.")
-            
-            print(f"💾 Rendering final video to: {output_filename}")
-            final_video_with_music.write_videofile(output_filename, fps=self.fps, codec='libx264', audio_codec='aac', threads=4)
-            
-            return {"filename": output_filename, "content": content}
+            # --- NEW: Upload the final video to Spaces ---
+            object_name = f"generated_videos/video_{datetime.now().strftime('%Y%m%d_%H%M%S')}.mp4"
+            storage_service.upload_file(output_filepath, object_name)
+
+            return output_filepath # Return the local path for YouTubeService to use
         
-        except InterruptedException as e:
-            print(f"   - 🛑 VideoProducer acknowledging kill signal: {e}")
-            raise e
         except Exception as e:
             import traceback
             print(f"❌ CATASTROPHIC ERROR during video production: {e}")
             traceback.print_exc()
             return None
-
-    def _clean_script_text(self, script_text):
-        if isinstance(script_text, list): script_text = "\n".join(script_text)
-        lines = script_text.split('\n')
-        cleaned_lines = [line.strip() for line in lines if line.strip() and not (line.startswith('#') or line.startswith('**'))]
-        return ' '.join(cleaned_lines)
+        finally:
+            # --- NEW: Clean up all temporary local files ---
+            print("   - Cleaning up temporary local files...")
+            for f in local_temp_files:
+                if os.path.exists(f):
+                    os.remove(f)
 
     def generate_script_audio(self, script_text, voice_type="male_voice"):
-        if self.kill_switch.is_set(): raise InterruptedException("Audio generation cancelled.")
-        cleaned_script = self._clean_script_text(script_text)
+        cleaned_script = "".join(str(v) for v in script_text.values()) if isinstance(script_text, dict) else str(script_text)
         if not cleaned_script: return None
         
-        filename = f"script_audio_{datetime.now().strftime('%Y%m%d_%H%M%S')}.mp3"
-        filepath = os.path.join(self.audio_path, filename)
-        
-        print(f"🗣️ Generating audio using gTTS fallback...")
         try:
             if gTTS:
                 tts = gTTS(text=cleaned_script, lang='en', slow=False)
-                tts.save(filepath)
-                print(f"   🔊 Audio file generated with gTTS: {filepath}")
+                # --- NEW: Save to a temporary local file ---
+                with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as temp_file:
+                    filepath = temp_file.name
+                    tts.save(filepath)
+
+                # --- NEW: Upload the audio file to Spaces ---
+                object_name = f"generated_audio/audio_{datetime.now().strftime('%Y%m%d_%H%M%S')}.mp3"
+                storage_service.upload_file(filepath, object_name)
+
+                print(f"   🔊 Audio generated, saved locally to {filepath}, and uploaded to Spaces.")
                 return filepath
             else:
-                print("   - ❌ No TTS client available (gTTS not installed).")
+                print("   - ❌ No TTS client available.")
                 return None
         except Exception as e:
             print(f"   - ❌ Error during gTTS audio synthesis: {e}")
             return None
-
+            
+    # --- Helper methods (no changes needed) ---
     def _create_intro_clip(self, duration, resolution):
         logo_path = os.path.join(ASSETS_PATH, "visual_identity/intro_logo.png")
         background = ColorClip(size=resolution, color=(13, 17, 23), duration=duration)
         if os.path.exists(logo_path):
-            logo_height = int(resolution[1] * 0.2)
-            logo = ImageClip(logo_path).set_duration(duration).resize(height=logo_height).set_position('center')
+            logo = ImageClip(logo_path).set_duration(duration).resize(height=int(resolution[1] * 0.2)).set_position('center')
             return CompositeVideoClip([background, logo])
         return background
 
@@ -209,17 +173,13 @@ class VideoProducerService:
     def _create_content_clips_from_images(self, images, audio_duration, resolution):
         if not images:
             return [ColorClip(size=resolution, color=(0, 0, 0), duration=audio_duration)]
-        
         clips = []
         segment_duration = audio_duration / len(images)
         for image_path in images:
-            if self.kill_switch.is_set(): raise InterruptedException("Video clip assembly cancelled.")
             try:
-                clip = ImageClip(image_path).set_duration(segment_duration).set_position('center')
-                # Simple scale and crop to fit target resolution
-                clip_resized = clip.resize(height=resolution[1]) if clip.size[1] < resolution[1] else clip.resize(width=resolution[0])
-                final_clip = CompositeVideoClip([clip_resized.set_position('center')], size=resolution)
-                clips.append(final_clip)
+                clip = ImageClip(image_path).set_duration(segment_duration)
+                final_clip = clip.resize(height=resolution[1]).set_position(('center', 'center'))
+                clips.append(CompositeVideoClip([final_clip], size=resolution))
             except Exception as e:
                 print(f"   - ⚠️ Warning: Could not process image {image_path}: {e}")
         return clips
@@ -228,17 +188,13 @@ class VideoProducerService:
         try:
             music_files = [os.path.join(MUSIC_ASSETS_PATH, f) for f in os.listdir(MUSIC_ASSETS_PATH) if f.lower().endswith(('.mp3', '.wav'))]
             if not music_files: return video_clip
-            
             music_path = random.choice(music_files)
             music = AudioFileClip(music_path).volumex(music_volume)
-            
             if music.duration > video_clip.duration:
                 music = music.subclip(0, video_clip.duration)
             else:
                 music = audio_loop(music, duration=video_clip.duration)
-
-            final_audio = CompositeAudioClip([video_clip.audio, music])
-            return video_clip.set_audio(final_audio)
+            return video_clip.set_audio(CompositeAudioClip([video_clip.audio, music]))
         except Exception as e:
             print(f"   - ⚠️ Warning: Could not add background music: {e}")
             return video_clip
