@@ -2,7 +2,7 @@
 
 import requests
 from urllib.parse import urlencode
-from src.config import LINKEDIN_CLIENT_ID, LINKEDIN_CLIENT_SECRET, LINKEDIN_REDIRECT_URI
+fromconfig import LINKEDIN_CLIENT_ID, LINKEDIN_CLIENT_SECRET, LINKEDIN_REDIRECT_URI
 
 class LinkedInService:
     """

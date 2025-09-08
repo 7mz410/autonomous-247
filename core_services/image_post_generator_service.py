@@ -5,8 +5,8 @@ import textwrap
 import tempfile
 from datetime import datetime
 from PIL import Image, ImageDraw, ImageFont
-from src.config import ASSETS_PATH
-from src.utils import storage_service
+fromconfig import ASSETS_PATH
+fromutils import storage_service
 
 class ImagePostGeneratorService:
     def __init__(self):

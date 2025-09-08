@@ -2,8 +2,8 @@
 
 import requests
 import json
-from src.config import SERPER_API_KEY
-from src.utils.web_utils import browse_url
+fromconfig import SERPER_API_KEY
+fromutils.web_utils import browse_url
 
 class WebSearchService:
     """

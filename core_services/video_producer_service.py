@@ -11,9 +11,9 @@ from PIL import Image
 from moviepy.editor import *
 from moviepy.audio.fx.all import audio_loop
 
-from src.config import STABILITY_AI_API_KEY, ASSETS_PATH, MUSIC_ASSETS_PATH
-from src.utils.exceptions import InterruptedException
-from src.utils import storage_service
+fromconfig import STABILITY_AI_API_KEY, ASSETS_PATH, MUSIC_ASSETS_PATH
+fromutils.exceptions import InterruptedException
+fromutils import storage_service
 
 try:
     from gtts import gTTS

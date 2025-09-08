@@ -3,7 +3,7 @@
 import time
 import os
 from dotenv import load_dotenv
-from src.orchestration.main_orchestrator import MainOrchestrator
+fromorchestration.main_orchestrator import MainOrchestrator
 
 def main():
     """

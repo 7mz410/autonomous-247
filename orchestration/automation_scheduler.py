@@ -6,7 +6,7 @@ import json
 import os
 import logging
 import threading
-from src.config import DATA_PATH
+fromconfig import DATA_PATH
 
 
 LOG_FILE = os.path.join(DATA_PATH, 'automation.log')

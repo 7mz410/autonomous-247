@@ -1,7 +1,7 @@
 # src/orchestration/main_orchestrator.py
 
 import threading
-from src.utils.exceptions import InterruptedException
+fromutils.exceptions import InterruptedException
 
 # Notice how we removed all the service imports from the top level.
 
@@ -10,14 +10,14 @@ class MainOrchestrator:
         print("Initializing the Main Orchestrator...")
 
         # --- LAZY LOADING: Import services inside __init__ to break circular dependencies ---
-        from src.core_services.content_generator_service import ContentGeneratorService
-        from src.core_services.video_producer_service import VideoProducerService
-        from src.core_services.web_search_service import WebSearchService
-        from src.core_services.image_post_generator_service import ImagePostGeneratorService
-        from src.platform_services.youtube_service import YouTubeService
-        from src.platform_services.linkedin_service import LinkedInService
-        from src.platform_services.instagram_service import InstagramService
-        from src.orchestration.automation_scheduler import AutomationScheduler
+        fromcore_services.content_generator_service import ContentGeneratorService
+        fromcore_services.video_producer_service import VideoProducerService
+        fromcore_services.web_search_service import WebSearchService
+        fromcore_services.image_post_generator_service import ImagePostGeneratorService
+        fromplatform_services.youtube_service import YouTubeService
+        fromplatform_services.linkedin_service import LinkedInService
+        fromplatform_services.instagram_service import InstagramService
+        fromorchestration.automation_scheduler import AutomationScheduler
         
         self.kill_switch = threading.Event()
 

@@ -3,7 +3,7 @@
 import os
 import random
 import requests
-from src.config import PEXELS_API_KEY, DATA_PATH
+fromconfig import PEXELS_API_KEY, DATA_PATH
 
 try:
     from pexels_api import API
