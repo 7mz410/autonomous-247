@@ -2,7 +2,7 @@
 import threading
 from utils.exceptions import InterruptedException
 
-# Notice: All service imports are removed from the top level.
+# Notice: All service imports are removed from the top level to be lazy-loaded.
 
 class MainOrchestrator:
     def __init__(self):
