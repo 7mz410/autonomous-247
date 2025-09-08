@@ -1,7 +1,7 @@
 # src/utils/web_utils.py
 
 import requests
-from bs4 import BeautifulSoup
+from  bs4 import BeautifulSoup
 
 def browse_url(url: str) -> str | None:
     """

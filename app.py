@@ -1,16 +1,16 @@
 # app.py
 
 import streamlit as st
-from datetime import datetime
-from dotenv import load_dotenv
+from  datetime import datetime
+from  dotenv import load_dotenv
 
 # --- Step 1: Load Environment Variables ---
-# Load variables from .env file for local development.
+# Load variables from  .env file for local development.
 # In production (e.g., DigitalOcean), these will be set in the platform's UI.
 load_dotenv()
 
 # --- Step 2: Import Orchestrator AFTER loading env vars ---
-from orchestration.main_orchestrator import MainOrchestrator
+from  orchestration.main_orchestrator import MainOrchestrator
 
 # --- Page Configuration (set this only once) ---
 st.set_page_config(page_title="Autonomous 247 Hub", page_icon="🤖", layout="wide")
@@ -41,7 +41,7 @@ initialize_session_state()
 
 # --- LinkedIn Authentication Handling ---
 def handle_linkedin_auth():
-    """Checks for the auth code from LinkedIn and finalizes the connection."""
+    """Checks for the auth code from  LinkedIn and finalizes the connection."""
     auth_code = st.query_params.get("code")
     if auth_code and not st.session_state.linkedin_authenticated:
         with st.spinner("Finalizing LinkedIn connection..."):
@@ -149,7 +149,7 @@ with st.expander("⚙️ System Automation & Settings"):
     
     next_run = status_data.get('next_run', 'N/A')
     if next_run != 'N/A' and next_run != "No jobs scheduled":
-        c5.metric("Next Scheduled Run", datetime.fromisoformat(next_run.split('.')[0]).strftime('%a, %H:%M'))
+        c5.metric("Next Scheduled Run", datetime.from isoformat(next_run.split('.')[0]).strftime('%a, %H:%M'))
     else:
         c5.metric("Next Scheduled Run", next_run)
 

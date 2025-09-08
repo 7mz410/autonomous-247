@@ -6,17 +6,17 @@ import io
 import re
 import requests
 import tempfile
-from datetime import datetime
-from PIL import Image
-from moviepy.editor import *
-from moviepy.audio.fx.all import audio_loop
+from  datetime import datetime
+from  PIL import Image
+from  moviepy.editor import *
+from  moviepy.audio.fx.all import audio_loop
 
-fromconfig import STABILITY_AI_API_KEY, ASSETS_PATH, MUSIC_ASSETS_PATH
-fromutils.exceptions import InterruptedException
-fromutils import storage_service
+from config import STABILITY_AI_API_KEY, ASSETS_PATH, MUSIC_ASSETS_PATH
+from utils.exceptions import InterruptedException
+from utils import storage_service
 
 try:
-    from gtts import gTTS
+    from  gtts import gTTS
 except ImportError:
     gTTS = None
 
@@ -47,7 +47,7 @@ class VideoProducerService:
             return []
 
         local_image_paths = []
-        print(f"🤖 Generating {len(prompts)} image(s) from Stability AI...")
+        print(f"🤖 Generating {len(prompts)} image(s) from  Stability AI...")
         for i, prompt in enumerate(prompts):
             if self.kill_switch.is_set(): raise InterruptedException("AI Image generation cancelled.")
             
@@ -98,7 +98,7 @@ class VideoProducerService:
             local_temp_files.extend(image_paths)
 
             intro = self._create_intro_clip(duration=3, resolution=target_resolution)
-            content_clips = self._create_content_clips_from_images(image_paths, main_audio.duration, resolution=target_resolution)
+            content_clips = self._create_content_clips_from _images(image_paths, main_audio.duration, resolution=target_resolution)
             outro = self._create_outro_clip(duration=5, resolution=target_resolution)
 
             final_content_video = concatenate_videoclips(content_clips, method="compose").set_audio(main_audio)
@@ -170,7 +170,7 @@ class VideoProducerService:
             return ImageClip(outro_path).set_duration(duration).resize(resolution)
         return ColorClip(size=resolution, color=(13, 17, 23), duration=duration)
 
-    def _create_content_clips_from_images(self, images, audio_duration, resolution):
+    def _create_content_clips_from _images(self, images, audio_duration, resolution):
         if not images:
             return [ColorClip(size=resolution, color=(0, 0, 0), duration=audio_duration)]
         clips = []

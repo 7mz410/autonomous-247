@@ -2,13 +2,13 @@
 
 import requests
 import json
-fromconfig import SERPER_API_KEY
-fromutils.web_utils import browse_url
+from config import SERPER_API_KEY
+from utils.web_utils import browse_url
 
 class WebSearchService:
     """
     A service responsible for performing web searches using the Serper API
-    and extracting content from the most relevant URL.
+    and extracting content from  the most relevant URL.
     """
     def __init__(self):
         if not SERPER_API_KEY or "YOUR_SERPER_API_KEY" in SERPER_API_KEY:
@@ -20,7 +20,7 @@ class WebSearchService:
 
     def search_and_extract_context(self, topic: str) -> str | None:
         """
-        Searches a topic, finds the best URL from the results, and browses it
+        Searches a topic, finds the best URL from  the results, and browses it
         to extract clean text content.
         """
         if not self.is_configured:
@@ -42,14 +42,14 @@ class WebSearchService:
             best_link = search_results["organic"][0]["link"]
             print(f"   - ✅ Found most promising URL: {best_link}")
 
-            print(f"   - 📖 Reading and extracting content from URL...")
+            print(f"   - 📖 Reading and extracting content from  URL...")
             context_text = browse_url(best_link)
 
             if context_text:
                 print(f"   - ✅ Successfully extracted context! (Length: {len(context_text)} chars)")
                 return context_text
             else:
-                print(f"   - ❗ Failed to extract usable content from the URL.")
+                print(f"   - ❗ Failed to extract usable content from  the URL.")
                 return None
         except requests.RequestException as e:
             print(f"   - ❌ An error occurred during the Serper API call: {e}")

@@ -3,10 +3,10 @@
 import os
 import textwrap
 import tempfile
-from datetime import datetime
-from PIL import Image, ImageDraw, ImageFont
-fromconfig import ASSETS_PATH
-fromutils import storage_service
+from  datetime import datetime
+from  PIL import Image, ImageDraw, ImageFont
+from config import ASSETS_PATH
+from utils import storage_service
 
 class ImagePostGeneratorService:
     def __init__(self):

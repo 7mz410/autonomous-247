@@ -2,11 +2,11 @@
 
 import os
 import pickle
-from googleapiclient.discovery import build
-from googleapiclient.http import MediaFileUpload
-from google_auth_oauthlib.flow import InstalledAppFlow
-from google.auth.transport.requests import Request
-fromutils import storage_service # <-- NEW: Import our storage service
+from  googleapiclient.discovery import build
+from  googleapiclient.http import MediaFileUpload
+from  google_auth_oauthlib.flow import InstalledAppFlow
+from  google.auth.transport.requests import Request
+from utils import storage_service # <-- NEW: Import our storage service
 
 class YouTubeService:
     def __init__(self, content_generator, video_producer):
@@ -76,7 +76,7 @@ class YouTubeService:
         """
         creds = None
         
-        # --- NEW: Try to load token from Spaces ---
+        # --- NEW: Try to load token from  Spaces ---
         token_data = storage_service.get_file_content(self.token_object_name)
         if token_data:
             creds = pickle.loads(token_data)
@@ -91,14 +91,14 @@ class YouTubeService:
                     creds = None
             
             if not creds:
-                # --- NEW: Load credentials from Spaces ---
+                # --- NEW: Load credentials from  Spaces ---
                 credentials_content = storage_service.get_file_content(self.credentials_object_name)
                 if not credentials_content:
                     print(f"❌ Critical Error: '{self.credentials_object_name}' not found in Spaces.")
                     return None
                 
                 print("   - Performing first-time YouTube authentication (this requires local browser)...")
-                flow = InstalledAppFlow.from_client_secrets_info(eval(credentials_content), self.SCOPES)
+                flow = InstalledAppFlow.from _client_secrets_info(eval(credentials_content), self.SCOPES)
                 creds = flow.run_local_server(port=0)
 
             # --- NEW: Save the new/refreshed token back to Spaces ---

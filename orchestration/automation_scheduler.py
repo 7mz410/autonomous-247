@@ -6,7 +6,7 @@ import json
 import os
 import logging
 import threading
-fromconfig import DATA_PATH
+from config import DATA_PATH
 
 
 LOG_FILE = os.path.join(DATA_PATH, 'automation.log')
@@ -138,7 +138,7 @@ class AutomationScheduler:
                 with open(file_path, 'r', encoding='utf-8') as f:
                     return json.load(f)
         except (json.JSONDecodeError, IOError) as e:
-            print(f"   - ⚠️ Could not load JSON from {file_path}: {e}. Using default.")
+            print(f"   - ⚠️ Could not load JSON from  {file_path}: {e}. Using default.")
         return default_data
 
     def _save_json(self, file_path, data):

@@ -1,7 +1,7 @@
 # src/utils/storage_service.py
 import boto3
 import os
-from botocore.exceptions import NoCredentialsError, ClientError
+from  botocore.exceptions import NoCredentialsError, ClientError
 
 # --- Configuration is loaded at the module level ---
 SPACES_KEY = os.getenv("DO_SPACES_KEY")
@@ -56,7 +56,7 @@ def upload_file(file_path, object_name):
         return None
 
 def get_file_content(object_name):
-    """Retrieve the content of a file from Spaces."""
+    """Retrieve the content of a file from  Spaces."""
     client = get_client()
     if not client: return None
     

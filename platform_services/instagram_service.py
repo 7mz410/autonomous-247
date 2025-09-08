@@ -3,10 +3,10 @@
 import os
 import random
 import requests
-fromconfig import PEXELS_API_KEY, DATA_PATH
+from config import PEXELS_API_KEY, DATA_PATH
 
 try:
-    from pexels_api import API
+    from  pexels_api import API
 except ImportError:
     API = None
 
@@ -19,7 +19,7 @@ class InstagramService:
         self.content_generator = content_generator
         self.image_post_generator = image_post_generator
         
-        # This path is for temporary source images downloaded from Pexels
+        # This path is for temporary source images downloaded from  Pexels
         self.temp_images_path = os.path.join(DATA_PATH, "generated_images")
         os.makedirs(self.temp_images_path, exist_ok=True)
 
@@ -31,7 +31,7 @@ class InstagramService:
             print("✅ Instagram Service initialized with Pexels API.")
 
     def _get_daily_astrology_data(self, sign: str) -> dict | None:
-        """Fetches daily horoscope data from a free, public astrology API."""
+        """Fetches daily horoscope data from  a free, public astrology API."""
         print(f"   - Fetching daily data for {sign}...")
         try:
             response = requests.post(f'https://aztro.sameerkumar.website/?sign={sign}&day=today', timeout=10)
@@ -44,7 +44,7 @@ class InstagramService:
             return None
 
     def _get_royalty_free_image(self, query: str, sign: str) -> str | None:
-        """Searches and downloads a royalty-free image from Pexels."""
+        """Searches and downloads a royalty-free image from  Pexels."""
         if not self.pexels_api:
             print("   - ❗ Pexels API not configured. Skipping image search.")
             return None
@@ -66,10 +66,10 @@ class InstagramService:
             with open(temp_path, "wb") as f:
                 f.write(response.content)
             
-            print(f"   - ✅ Image downloaded successfully from Pexels to {temp_path}.")
+            print(f"   - ✅ Image downloaded successfully from  Pexels to {temp_path}.")
             return temp_path
         except Exception as e:
-            print(f"   - ❌ Error fetching image from Pexels: {e}")
+            print(f"   - ❌ Error fetching image from  Pexels: {e}")
             return None
 
     def create_daily_astrology_post_for_all_signs(self):
