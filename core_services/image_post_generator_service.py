@@ -6,7 +6,7 @@ import tempfile
 from datetime import datetime
 from PIL import Image, ImageDraw, ImageFont
 from config import ASSETS_PATH
-from autonomous247.utils import storage_service
+from utils import storage_service
 
 class ImagePostGeneratorService:
     def __init__(self):

@@ -6,7 +6,7 @@ from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
-from autonomous247.utils import storage_service # <-- NEW: Import our storage service
+from utils import storage_service # <-- NEW: Import our storage service
 
 class YouTubeService:
     def __init__(self, content_generator, video_producer):

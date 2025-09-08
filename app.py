@@ -1,5 +1,14 @@
 # app.py
 
+# app.py
+import os
+import sys
+# --- THE GOLDEN FIX: Force the project root into the Python path ---
+sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
+
+import streamlit as st
+from orchestration.main_orchestrator import MainOrchestrator
+
 import streamlit as st
 from datetime import datetime
 from dotenv import load_dotenv

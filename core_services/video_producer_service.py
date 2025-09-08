@@ -12,8 +12,8 @@ from moviepy.editor import *
 from moviepy.audio.fx.all import audio_loop
 
 from config import STABILITY_AI_API_KEY, ASSETS_PATH, MUSIC_ASSETS_PATH
-from autonomous247.utils.exceptions import InterruptedException
-from autonomous247.utils import storage_service
+from utils.exceptions import InterruptedException
+from utils import storage_service
 
 try:
     from gtts import gTTS

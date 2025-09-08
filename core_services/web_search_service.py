@@ -3,7 +3,7 @@
 import requests
 import json
 from config import SERPER_API_KEY
-from autonomous247.utils.web_utils import browse_url
+from utils.web_utils import browse_url
 
 class WebSearchService:
     """
