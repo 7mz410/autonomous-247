@@ -1,9 +1,4 @@
-# worker.py
-import os
-import sys
 
-# --- THE FINAL FIX: Add the project root to the Python path ---
-sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 
 import time
 from dotenv import load_dotenv

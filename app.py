@@ -1,10 +1,4 @@
-# app.py
-import os
-import sys
 
-# --- THE FINAL FIX: Add the project root to the Python path ---
-# This ensures that all sub-folders are discoverable as packages.
-sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 
 import streamlit as st
 from datetime import datetime
