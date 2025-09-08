@@ -149,7 +149,7 @@ with st.expander("⚙️ System Automation & Settings"):
     
     next_run = status_data.get('next_run', 'N/A')
     if next_run != 'N/A' and next_run != "No jobs scheduled":
-        c5.metric("Next Scheduled Run", datetime.from isoformat(next_run.split('.')[0]).strftime('%a, %H:%M'))
+        c5.metric("Next Scheduled Run", datetime.fromisoformat(next_run.split('.')[0]).strftime('%a, %H:%M'))
     else:
         c5.metric("Next Scheduled Run", next_run)
 
