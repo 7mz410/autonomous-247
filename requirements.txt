@@ -124,3 +124,4 @@ wcwidth==0.2.13
 webencodings==0.5.1
 websocket-client==1.8.0
 yarg==0.1.9
+-e .
