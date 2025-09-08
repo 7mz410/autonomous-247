@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # --- Step 2: Import Orchestrator AFTER loading env vars ---
-fromorchestration.main_orchestrator import MainOrchestrator
+from orchestration.main_orchestrator import MainOrchestrator
 
 # --- Page Configuration (set this only once) ---
 st.set_page_config(page_title="Autonomous 247 Hub", page_icon="🤖", layout="wide")
