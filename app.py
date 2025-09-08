@@ -1,18 +1,20 @@
 # app.py
+import os
 import sys
-sys.path.insert(0, '.')
+
+# --- THE FINAL FIX: Add the project root to the Python path ---
+# This ensures that all sub-folders are discoverable as packages.
+sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 
 import streamlit as st
-from  datetime import datetime
-from  dotenv import load_dotenv
+from datetime import datetime
+from dotenv import load_dotenv
+from orchestration.main_orchestrator import MainOrchestrator
 
 # --- Step 1: Load Environment Variables ---
-# Load variables from  .env file for local development.
+# Load variables from .env file for local development.
 # In production (e.g., DigitalOcean), these will be set in the platform's UI.
 load_dotenv()
-
-# --- Step 2: Import Orchestrator AFTER loading env vars ---
-from  orchestration.main_orchestrator import MainOrchestrator
 
 # --- Page Configuration (set this only once) ---
 st.set_page_config(page_title="Autonomous 247 Hub", page_icon="🤖", layout="wide")
@@ -43,7 +45,7 @@ initialize_session_state()
 
 # --- LinkedIn Authentication Handling ---
 def handle_linkedin_auth():
-    """Checks for the auth code from  LinkedIn and finalizes the connection."""
+    """Checks for the auth code from LinkedIn and finalizes the connection."""
     auth_code = st.query_params.get("code")
     if auth_code and not st.session_state.linkedin_authenticated:
         with st.spinner("Finalizing LinkedIn connection..."):

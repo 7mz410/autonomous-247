@@ -1,23 +1,18 @@
-# src/orchestration/main_orchestrator.py
-
+# orchestration/main_orchestrator.py
 import threading
 from utils.exceptions import InterruptedException
-
-# Notice how we removed all the service imports from  the top level.
+from core_services.content_generator_service import ContentGeneratorService
+from core_services.video_producer_service import VideoProducerService
+from core_services.web_search_service import WebSearchService
+from core_services.image_post_generator_service import ImagePostGeneratorService
+from platform_services.youtube_service import YouTubeService
+from platform_services.linkedin_service import LinkedInService
+from platform_services.instagram_service import InstagramService
+from orchestration.automation_scheduler import AutomationScheduler
 
 class MainOrchestrator:
     def __init__(self):
         print("Initializing the Main Orchestrator...")
-
-        # --- LAZY LOADING: Import services inside __init__ to break circular dependencies ---
-        from core_services.content_generator_service import ContentGeneratorService
-        from core_services.video_producer_service import VideoProducerService
-        from core_services.web_search_service import WebSearchService
-        from core_services.image_post_generator_service import ImagePostGeneratorService
-        from platform_services.youtube_service import YouTubeService
-        from platform_services.linkedin_service import LinkedInService
-        from platform_services.instagram_service import InstagramService
-        from orchestration.automation_scheduler import AutomationScheduler
         
         self.kill_switch = threading.Event()
 
@@ -27,7 +22,7 @@ class MainOrchestrator:
         self.image_post_generator = ImagePostGeneratorService()
         self.content_generator = ContentGeneratorService(web_search_service=self.web_search_service)
         
-        # --- Initialize Platform Services ---
+        # --- Initialize Platform Services (injecting core services as dependencies) ---
         self.youtube_service = YouTubeService(
             content_generator=self.content_generator, 
             video_producer=self.video_producer
@@ -44,8 +39,6 @@ class MainOrchestrator:
         # --- Initialize the Automation Scheduler ---
         self.scheduler = AutomationScheduler(youtube_service=self.youtube_service)
         print("✅ Main Orchestrator and all services initialized.")
-
-    # --- The rest of the file is exactly the same ---
 
     def trigger_kill_switch(self):
         print("ORCHESTRATOR: Kill switch triggered!")

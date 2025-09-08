@@ -1,8 +1,12 @@
 # worker.py
+import os
+import sys
+
+# --- THE FINAL FIX: Add the project root to the Python path ---
+sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 
 import time
-import os
-from  dotenv import load_dotenv
+from dotenv import load_dotenv
 from orchestration.main_orchestrator import MainOrchestrator
 
 def main():
@@ -11,7 +15,7 @@ def main():
     This worker's job is to initialize the system and then run the automation
     scheduler, keeping the process alive indefinitely to execute scheduled tasks.
     """
-    # Load environment variables from  .env file for local development
+    # Load environment variables from .env file for local development
     load_dotenv()
     
     print("--- Starting the Autonomous 247 Worker ---")
