@@ -1,4 +1,6 @@
 # app.py
+import os
+import sys
 
 # --- THE GOLDEN FIX: Force the project root into the Python path ---
 # This explicitly tells the running script where to find its packages.

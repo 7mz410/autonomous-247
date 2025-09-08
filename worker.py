@@ -1,4 +1,6 @@
 # worker.py
+import os
+import sys
 
 # --- THE GOLDEN FIX: Force the project root into the Python path ---
 sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
