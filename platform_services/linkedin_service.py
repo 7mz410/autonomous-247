@@ -1,7 +1,7 @@
 # src/platform_services/linkedin_service.py
 
 import requests
-from  urllib.parse import urlencode
+from urllib.parse import urlencode
 from config import LINKEDIN_CLIENT_ID, LINKEDIN_CLIENT_SECRET, LINKEDIN_REDIRECT_URI
 
 class LinkedInService:
@@ -72,7 +72,7 @@ class LinkedInService:
         return f"{self.auth_url}?{urlencode(params)}"
 
     def exchange_code_for_token(self, auth_code):
-        """Exchanges the authorization code from  the redirect for an access token."""
+        """Exchanges the authorization code from the redirect for an access token."""
         data = {
             'grant_type': 'authorization_code',
             'code': auth_code,

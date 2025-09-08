@@ -6,17 +6,17 @@ import io
 import re
 import requests
 import tempfile
-from  datetime import datetime
-from  PIL import Image
-from  moviepy.editor import *
-from  moviepy.audio.fx.all import audio_loop
+from datetime import datetime
+from PIL import Image
+from moviepy.editor import *
+from moviepy.audio.fx.all import audio_loop
 
 from config import STABILITY_AI_API_KEY, ASSETS_PATH, MUSIC_ASSETS_PATH
-from utils.exceptions import InterruptedException
-from utils import storage_service
+from autonomous247.utils.exceptions import InterruptedException
+from autonomous247.utils import storage_service
 
 try:
-    from  gtts import gTTS
+    from gtts import gTTS
 except ImportError:
     gTTS = None
 
@@ -47,7 +47,7 @@ class VideoProducerService:
             return []
 
         local_image_paths = []
-        print(f"🤖 Generating {len(prompts)} image(s) from  Stability AI...")
+        print(f"🤖 Generating {len(prompts)} image(s) from Stability AI...")
         for i, prompt in enumerate(prompts):
             if self.kill_switch.is_set(): raise InterruptedException("AI Image generation cancelled.")
             

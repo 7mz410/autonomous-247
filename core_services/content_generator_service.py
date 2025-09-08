@@ -38,7 +38,7 @@ def generate_complete_video_content(self, topic, niche="Technology", auto_search
         return content_data
     except json.JSONDecodeError as e:
         # Instead of returning None, we now raise a specific error with context.
-        print(f"   - RAW RESPONSE from  OPENAI: {json_string}")
-        raise Exception(f"Failed to parse JSON from  OpenAI. Error: {e}")
+        print(f"   - RAW RESPONSE from OPENAI: {json_string}")
+        raise Exception(f"Failed to parse JSON from OpenAI. Error: {e}")
 
 # ... (the rest of the file is the same below this function)

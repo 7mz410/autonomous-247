@@ -1,13 +1,11 @@
 # worker.py
-import os
-import sys
 
 # --- THE GOLDEN FIX: Force the project root into the Python path ---
 sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 
 import time
 from dotenv import load_dotenv
-from orchestration.main_orchestrator import MainOrchestrator
+from autonomous247.orchestration.main_orchestrator import MainOrchestrator
 
 def main():
     load_dotenv()

@@ -1,20 +1,20 @@
 # orchestration/main_orchestrator.py
 import threading
-from utils.exceptions import InterruptedException
+from autonomous247.utils.exceptions import InterruptedException
 
 # Notice: All service imports are removed from the top level to be lazy-loaded.
 
 class MainOrchestrator:
     def __init__(self):
         # --- LAZY LOADING: This breaks circular dependencies during initialization ---
-        from core_services.content_generator_service import ContentGeneratorService
-        from core_services.video_producer_service import VideoProducerService
-        from core_services.web_search_service import WebSearchService
-        from core_services.image_post_generator_service import ImagePostGeneratorService
-        from platform_services.youtube_service import YouTubeService
-        from platform_services.linkedin_service import LinkedInService
-        from platform_services.instagram_service import InstagramService
-        from orchestration.automation_scheduler import AutomationScheduler
+        from autonomous247.core_services.content_generator_service import ContentGeneratorService
+        from autonomous247.core_services.video_producer_service import VideoProducerService
+        from autonomous247.core_services.web_search_service import WebSearchService
+        from autonomous247.core_services.image_post_generator_service import ImagePostGeneratorService
+        from autonomous247.platform_services.youtube_service import YouTubeService
+        from autonomous247.platform_services.linkedin_service import LinkedInService
+        from autonomous247.platform_services.instagram_service import InstagramService
+        from autonomous247.orchestration.automation_scheduler import AutomationScheduler
 
         print("Initializing the Main Orchestrator...")
         

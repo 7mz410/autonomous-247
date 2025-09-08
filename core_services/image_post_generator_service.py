@@ -3,10 +3,10 @@
 import os
 import textwrap
 import tempfile
-from  datetime import datetime
-from  PIL import Image, ImageDraw, ImageFont
+from datetime import datetime
+from PIL import Image, ImageDraw, ImageFont
 from config import ASSETS_PATH
-from utils import storage_service
+from autonomous247.utils import storage_service
 
 class ImagePostGeneratorService:
     def __init__(self):
