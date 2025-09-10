@@ -71,8 +71,8 @@ class AstrologyService:
                 base_image_path=base_image_path, 
                 text=raw_data.get('description'), 
                 title=sign.capitalize(),
-                title_font_size=120,
-                body_font_size=90
+                title_font_size=160,
+                body_font_size=110
             )
             
             if final_post_url:
