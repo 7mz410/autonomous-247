@@ -138,4 +138,4 @@ class ContentGeneratorService:
                 return json.loads(json_string)
             except json.JSONDecodeError:
                 return None
-        return None```
+        return None
