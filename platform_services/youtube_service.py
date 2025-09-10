@@ -6,7 +6,7 @@ from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
-from utils import storage_service # <-- NEW: Import our storage service
+from utils import storage_service
 
 class YouTubeService:
     def __init__(self, content_generator, video_producer):
@@ -14,7 +14,6 @@ class YouTubeService:
         self.video_producer = video_producer
         self.SCOPES = ['https://www.googleapis.com/auth/youtube.upload']
         
-        # --- NEW: Define object names for Spaces ---
         self.credentials_object_name = 'auth/youtube_credentials.json'
         self.token_object_name = 'auth/youtube_token.pickle'
         
@@ -31,7 +30,6 @@ class YouTubeService:
             print("❌ YouTube Service failed to authenticate.")
 
     def create_and_upload_video(self, niche, topic, voice_type="female_voice", upload=True, image_source="ai_generated", auto_search_context=False):
-        # ... (This function does not need changes, its logic is correct)
         print(f"\nYOUTUBE_SERVICE: Starting video pipeline for topic '{topic}'...")
         try:
             print("   - Step 1/3: Generating content package...")
@@ -60,9 +58,6 @@ class YouTubeService:
                 else:
                     print("   - ⚠️ YouTube upload skipped due to authentication failure.")
             
-            # Here you could optionally upload the final video to Spaces as well
-            # storage_service.upload_file(video_filepath, f"final_videos/{os.path.basename(video_filepath)}")
-
             return {"success": True, "path": video_filepath}
 
         except Exception as e:
@@ -70,13 +65,8 @@ class YouTubeService:
             return {"success": False, "message": str(e)}
 
     def authenticate(self):
-        """
-        Authenticates with YouTube API using credentials and tokens stored in
-        DigitalOcean Spaces.
-        """
         creds = None
         
-        # --- NEW: Try to load token from Spaces ---
         token_data = storage_service.get_file_content(self.token_object_name)
         if token_data:
             creds = pickle.loads(token_data)
@@ -91,26 +81,24 @@ class YouTubeService:
                     creds = None
             
             if not creds:
-                # --- NEW: Load credentials from Spaces ---
                 credentials_content = storage_service.get_file_content(self.credentials_object_name)
                 if not credentials_content:
                     print(f"❌ Critical Error: '{self.credentials_object_name}' not found in Spaces.")
                     return None
                 
                 print("   - Performing first-time YouTube authentication (this requires local browser)...")
-                flow = InstalledAppFlow.from _client_secrets_info(eval(credentials_content), self.SCOPES)
+                # --- THIS IS THE FIX ---
+                flow = InstalledAppFlow.from_client_secrets_info(eval(credentials_content), self.SCOPES)
                 creds = flow.run_local_server(port=0)
 
-            # --- NEW: Save the new/refreshed token back to Spaces ---
             with open("temp_token.pickle", "wb") as token_file:
                 pickle.dump(creds, token_file)
             storage_service.upload_file("temp_token.pickle", self.token_object_name)
-            os.remove("temp_token.pickle") # Clean up temporary local file
+            os.remove("temp_token.pickle") 
         
         return build('youtube', 'v3', credentials=creds)
 
     def upload_video(self, video_file, title, description, tags=None, privacy_status=None, category_id=None):
-        # ... (This function does not need changes, its logic is correct)
         if not self.youtube_api: return None
         if not os.path.exists(video_file):
             print(f"   - ❌ Error: Video file not found at {video_file}")
