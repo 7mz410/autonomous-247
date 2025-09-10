@@ -16,9 +16,6 @@ except ImportError:
     API = None
 
 class AstrologyService:
-    """
-    Service dedicated to creating daily astrology image posts.
-    """
     def __init__(self, content_generator: 'ContentGeneratorService', image_post_generator: 'ImagePostGeneratorService'):
         self.content_generator = content_generator
         self.image_post_generator = image_post_generator
@@ -67,18 +64,16 @@ class AstrologyService:
             base_image_path = self._get_royalty_free_image(image_query, sign)
             if not base_image_path: continue
             
+            # --- THE FIX: We no longer pass custom font sizes. We trust the image generator. ---
             final_post_url = self.image_post_generator.create_post_image(
                 base_image_path=base_image_path, 
                 text=raw_data.get('description'), 
-                title=sign.capitalize(),
-                title_font_size=160,
-                body_font_size=110
+                title=sign.capitalize()
             )
             
             if final_post_url:
                 all_posts.append({"sign": sign, "url": final_post_url, "caption": caption})
             
-            # --- THIS IS THE FIX: Changed 'base_item_path' to 'base_image_path' ---
             if base_image_path and os.path.exists(base_image_path):
                 os.remove(base_image_path)
         
