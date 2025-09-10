@@ -10,13 +10,12 @@ from utils import storage_service
 
 class ImagePostGeneratorService:
     def __init__(self):
-        # No longer needs to manage local paths, it's now cloud-native.
         print("✅ Image Post Generator Service initialized.")
 
     def create_post_image(self, base_image_path: str, text: str, title: str) -> str | None:
         """
-        Overlays text onto a base image, saves the result to a temporary file,
-        uploads it to Spaces, and returns the public URL.
+        Overlays text onto a base image, saves it to a temporary file,
+        uploads it to Spaces, and cleans up.
         """
         try:
             with Image.open(base_image_path) as img:
@@ -26,13 +25,15 @@ class ImagePostGeneratorService:
                 draw = ImageDraw.Draw(img)
 
                 try:
-                    font_path = os.path.join(ASSETS_PATH, "fonts", "Arial.ttf")
+                    # The code will try to find the font at this exact path
+                    font_path = os.path.join(ASSETS_PATH, "Fonts", "Arial.ttf")
                     title_font = ImageFont.truetype(font_path, size=90)
                     body_font = ImageFont.truetype(font_path, size=60)
                 except IOError:
-                    print("   - ⚠️ Warning: Font not found. Using default font.")
-                    title_font = ImageFont.load_default(size=90)
-                    body_font = ImageFont.load_default(size=60)
+                    print("   - ⚠️ Warning: Custom font not found. Using default font.")
+                    # --- THIS IS THE FIX: load_default() does not take a 'size' argument ---
+                    title_font = ImageFont.load_default()
+                    body_font = ImageFont.load_default()
 
                 margin = 60
                 wrapped_text = textwrap.fill(text, width=25)
@@ -51,17 +52,15 @@ class ImagePostGeneratorService:
                 body_start_y = start_y + title_height + 40
                 draw.text((margin, body_start_y), wrapped_text, font=body_font, fill="white", spacing=15)
                 
-                # --- NEW: Save to a temporary local file ---
                 with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as temp_file:
                     img.save(temp_file.name, "PNG")
                     local_path = temp_file.name
 
-                # --- NEW: Upload to Spaces and get the URL ---
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                 object_name = f"generated_posts/post_{title.replace(' ','_')}_{timestamp}.png"
                 spaces_url = storage_service.upload_file(local_path, object_name)
 
-                os.remove(local_path) # Clean up the temporary file
+                os.remove(local_path) 
 
                 if spaces_url:
                     print(f"✅ Post image created and uploaded to Spaces.")
