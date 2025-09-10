@@ -12,17 +12,50 @@ class ImagePostGeneratorService:
     def __init__(self):
         print("✅ Image Post Generator Service initialized.")
 
-    # --- CHANGE: Added optional font size parameters with default values ---
     def create_post_image(
         self, 
         base_image_path: str, 
         text: str, 
         title: str, 
-        title_font_size: int = 75, 
-        body_font_size: int = 40
+        title_font_size: int = 110, 
+        body_font_size: int = 75
     ) -> str | None:
         try:
+            # --- NEW: Smart Cropping & Resizing Logic (The Magic Happens Here) ---
+            target_width, target_height = 1080, 1350
+            target_aspect = target_width / target_height
+
             with Image.open(base_image_path) as img:
+                original_width, original_height = img.size
+                original_aspect = original_width / original_height
+
+                # Determine the crop box
+                if original_aspect > target_aspect:
+                    # Original image is wider than target: Crop the sides
+                    new_height = target_height
+                    new_width = int(original_aspect * new_height)
+                    resized_img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
+                    
+                    left = (new_width - target_width) / 2
+                    top = 0
+                    right = left + target_width
+                    bottom = new_height
+                    img = resized_img.crop((left, top, right, bottom))
+                else:
+                    # Original image is taller than target (or same aspect): Crop the top/bottom
+                    new_width = target_width
+                    new_height = int(new_width / original_aspect)
+                    resized_img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
+
+                    left = 0
+                    top = (new_height - target_height) / 2
+                    right = new_width
+                    bottom = top + target_height
+                    img = resized_img.crop((left, top, right, bottom))
+
+                # --- End of New Logic ---
+
+                # Now 'img' is a perfect 1080x1350 image. The rest of the code proceeds as before.
                 img = img.convert("RGBA")
                 overlay = Image.new("RGBA", img.size, (0, 0, 0, 150))
                 img = Image.alpha_composite(img, overlay)
@@ -30,7 +63,6 @@ class ImagePostGeneratorService:
 
                 try:
                     font_path = os.path.join(ASSETS_PATH, "Fonts", "Arial.ttf")
-                    # --- CHANGE: Use the parameters for font sizes ---
                     title_font = ImageFont.truetype(font_path, size=title_font_size)
                     body_font = ImageFont.truetype(font_path, size=body_font_size)
                 except IOError:
