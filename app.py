@@ -1,13 +1,7 @@
 # app.py
-
-# app.py
 import os
 import sys
-# --- THE GOLDEN FIX: Force the project root into the Python path ---
 sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
-
-import streamlit as st
-from orchestration.main_orchestrator import MainOrchestrator
 
 import streamlit as st
 from datetime import datetime
@@ -25,8 +19,6 @@ def get_orchestrator():
 
 orchestrator = get_orchestrator()
 
-# --- The rest of the file is IDENTICAL to the last correct version ---
-# (Session state, auth handling, UI layout, etc.)
 def initialize_session_state():
     defaults = {
         'linkedin_authenticated': False,
@@ -38,6 +30,7 @@ def initialize_session_state():
         if key not in st.session_state:
             st.session_state[key] = value
 initialize_session_state()
+
 def handle_linkedin_auth():
     auth_code = st.query_params.get("code")
     if auth_code and not st.session_state.linkedin_authenticated:
@@ -55,25 +48,35 @@ def handle_linkedin_auth():
                 st.error(f"Connection failed: {error_msg}")
         st.stop()
 handle_linkedin_auth()
+
 st.title("Autonomous 247 Content Hub 🤖")
 st.caption("Your AI-Powered Content Automation Co-Pilot")
 st.divider()
 st.header("✨ Manual Content Generation")
+
 if st.session_state.is_generating:
     st.info(st.session_state.current_task_message)
     if st.button("🛑 STOP GENERATION", use_container_width=True, type="secondary"):
         orchestrator.trigger_kill_switch()
         st.warning("Stop signal sent! The process will halt gracefully at the next step...")
 else:
-    content_type = st.selectbox("1. Select a Task:",("YouTube Video", "Astrology Daily Posts", "LinkedIn Post"),key="sb_content_type")
+    # --- CHANGE: Add "Instagram Post" to the list of options ---
+    content_type = st.selectbox(
+        "1. Select a Task:",
+        ("YouTube Video", "Instagram Post", "LinkedIn Post", "Astrology Daily Posts"),
+        key="sb_content_type"
+    )
+
     if content_type == "Astrology Daily Posts":
-        st.info("This will generate 12 image posts (one for each zodiac sign) based on today's data.")
+        st.info("This will generate 12 image posts (one for each zodiac sign) based on today's AI data.")
         if st.button("🔮 Generate Today's 12 Astrology Posts", use_container_width=True, type="primary"):
             st.session_state.is_generating = True
             st.session_state.current_task_message = "Generating 12 Astrology Posts..."
             orchestrator.reset_kill_switch()
             with st.spinner("Generating posts... This may take several minutes."):
                 posts = orchestrator.generate_all_astrology_posts()
+            
+            # The result for astrology is a list, so we handle it slightly differently
             if posts is not None:
                 st.session_state.last_result = {"success": True, "message": f"Successfully generated {len(posts)} astrology posts!"}
             else:
@@ -84,6 +87,7 @@ else:
         niche = st.text_input("2. Enter Niche:", placeholder="e.g., Artificial Intelligence, Health & Wellness", key="ti_niche")
         topic = st.text_input("3. Enter a Topic:", placeholder="e.g., The Future of Generative AI", key="ti_topic")
         auto_search = st.toggle("Enable Autonomous Research", value=True, help="Allows the AI to search the web for context before generating.")
+        
         if st.button(f"🚀 Generate {content_type}", use_container_width=True, type="primary", disabled=(not topic or not niche)):
             st.session_state.is_generating = True
             st.session_state.current_task_message = f"Generating {content_type} on '{topic}'..."
@@ -91,10 +95,15 @@ else:
             result = None
             with st.spinner(st.session_state.current_task_message):
                 if content_type == "YouTube Video":
-                    result = orchestrator.generate_single_youtube_video(topic=topic, niche=niche, auto_search_context=auto_search, upload=False)
+                    result = orchestrator.generate_single_youtube_video(topic=topic, niche=niche, auto_search_context=auto_search)
+                # --- CHANGE: Add the logic for the new Instagram Post option ---
+                elif content_type == "Instagram Post":
+                    result = orchestrator.generate_single_instagram_post(topic=topic, niche=niche)
+
             st.session_state.last_result = result
             st.session_state.is_generating = False
             st.rerun()
+
 if st.session_state.last_result:
     res = st.session_state.last_result
     if res.get("success"):
@@ -104,8 +113,11 @@ if st.session_state.last_result:
     else:
         st.error(res.get("message", "An unknown error occurred."))
     st.session_state.last_result = None
+
+# --- The rest of the file (Automation Settings & LinkedIn) remains the same ---
 st.divider()
 with st.expander("⚙️ System Automation & Settings"):
+    # (The content of this expander does not need to be changed)
     st.subheader("System Dashboard")
     status_data = orchestrator.get_automation_status()
     stats = status_data.get('stats', {})

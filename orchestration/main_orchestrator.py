@@ -2,13 +2,14 @@
 import threading
 from utils.exceptions import InterruptedException
 
-# --- FIX: All service imports moved to the top level ---
 from core_services.content_generator_service import ContentGeneratorService
 from core_services.video_producer_service import VideoProducerService
 from core_services.web_search_service import WebSearchService
 from core_services.image_post_generator_service import ImagePostGeneratorService
 from platform_services.youtube_service import YouTubeService
 from platform_services.linkedin_service import LinkedInService
+from platform_services.astrology_service import AstrologyService
+# --- CHANGE: Import the new InstagramService ---
 from platform_services.instagram_service import InstagramService
 from orchestration.automation_scheduler import AutomationScheduler
 
@@ -22,8 +23,6 @@ class MainOrchestrator:
         self.web_search_service = WebSearchService()
         self.video_producer = VideoProducerService(kill_switch=self.kill_switch)
         self.image_post_generator = ImagePostGeneratorService()
-        # This next line is where the original error likely stems from.
-        # It depends on ContentGeneratorService, which might depend back on the orchestrator.
         self.content_generator = ContentGeneratorService(web_search_service=self.web_search_service)
         
         # --- Initialize Platform Services ---
@@ -35,16 +34,19 @@ class MainOrchestrator:
             content_generator=self.content_generator, 
             image_generator=self.video_producer
         )
-        self.instagram_service = InstagramService(
+        self.astrology_service = AstrologyService(
             content_generator=self.content_generator,
             image_post_generator=self.image_post_generator
+        )
+        # --- CHANGE: Initialize the new InstagramService ---
+        self.instagram_service = InstagramService(
+            content_generator=self.content_generator,
+            image_generator=self.video_producer  # Reusing the image generator
         )
         
         # --- Initialize the Automation Scheduler ---
         self.scheduler = AutomationScheduler(youtube_service=self.youtube_service)
         print("✅ Main Orchestrator and all services initialized.")
-
-    # --- The rest of the file is IDENTICAL ---
 
     def trigger_kill_switch(self):
         print("ORCHESTRATOR: Kill switch triggered!")
@@ -56,12 +58,23 @@ class MainOrchestrator:
     def generate_all_astrology_posts(self):
         self.reset_kill_switch()
         try:
-            return self.instagram_service.create_daily_astrology_post_for_all_signs()
+            return self.astrology_service.create_daily_astrology_post_for_all_signs()
         except InterruptedException:
             return []
         except Exception as e:
             print(f"ORCHESTRATOR: Critical error during astrology generation: {e}")
             return None
+
+    # --- CHANGE: Add a new method to handle Instagram post generation ---
+    def generate_single_instagram_post(self, topic: str, niche: str):
+        self.reset_kill_switch()
+        try:
+            return self.instagram_service.create_general_post(topic=topic, niche=niche)
+        except InterruptedException:
+            return {"success": False, "message": "Operation Cancelled by User."}
+        except Exception as e:
+            print(f"ORCHESTRATOR: Critical error during Instagram post generation: {e}")
+            return {"success": False, "message": "A critical internal error occurred."}
 
     def generate_single_youtube_video(self, topic, niche, upload=True, image_source="ai_generated", auto_search_context=False):
         self.reset_kill_switch()
