@@ -12,45 +12,46 @@ class ImagePostGeneratorService:
     def __init__(self):
         print("✅ Image Post Generator Service initialized.")
 
-    def create_post_image(self, base_image_path: str, text: str, title: str) -> str | None:
-        """
-        Overlays text onto a base image, saves it to a temporary file,
-        uploads it to Spaces, and cleans up.
-        """
+    # --- CHANGE: Added optional font size parameters with default values ---
+    def create_post_image(
+        self, 
+        base_image_path: str, 
+        text: str, 
+        title: str, 
+        title_font_size: int = 110, 
+        body_font_size: int = 75
+    ) -> str | None:
         try:
             with Image.open(base_image_path) as img:
                 img = img.convert("RGBA")
-                overlay = Image.new("RGBA", img.size, (0, 0, 0, 128))
+                overlay = Image.new("RGBA", img.size, (0, 0, 0, 150))
                 img = Image.alpha_composite(img, overlay)
                 draw = ImageDraw.Draw(img)
 
                 try:
-                    # The code will try to find the font at this exact path
                     font_path = os.path.join(ASSETS_PATH, "Fonts", "Arial.ttf")
-                    title_font = ImageFont.truetype(font_path, size=90)
-                    body_font = ImageFont.truetype(font_path, size=60)
+                    # --- CHANGE: Use the parameters for font sizes ---
+                    title_font = ImageFont.truetype(font_path, size=title_font_size)
+                    body_font = ImageFont.truetype(font_path, size=body_font_size)
                 except IOError:
                     print("   - ⚠️ Warning: Custom font not found. Using default font.")
-                    # --- THIS IS THE FIX: load_default() does not take a 'size' argument ---
                     title_font = ImageFont.load_default()
                     body_font = ImageFont.load_default()
 
-                margin = 60
-                wrapped_text = textwrap.fill(text, width=25)
-                
-                title_bbox = draw.textbbox((0, 0), title, font=title_font)
-                body_bbox = draw.textbbox((0, 0), wrapped_text, font=body_font, spacing=15)
+                # Centered drawing logic
+                title_bbox = draw.textbbox((0,0), title, font=title_font)
                 title_width = title_bbox[2] - title_bbox[0]
                 title_height = title_bbox[3] - title_bbox[1]
-                body_height = body_bbox[3] - body_bbox[1]
-                
-                total_height = title_height + 20 + body_height
-                start_y = (img.height - total_height) / 2
                 title_x = (img.width - title_width) / 2
-                
-                draw.text((title_x, start_y), title, font=title_font, fill="white")
-                body_start_y = start_y + title_height + 40
-                draw.text((margin, body_start_y), wrapped_text, font=body_font, fill="white", spacing=15)
+                title_y = (img.height / 2) - title_height - 100 
+                draw.text((title_x, title_y), title, font=title_font, fill="white")
+
+                wrapped_body = textwrap.fill(text, width=30)
+                body_bbox = draw.textbbox((0,0), wrapped_body, font=body_font, align="center", spacing=10)
+                body_width = body_bbox[2] - body_bbox[0]
+                body_x = (img.width - body_width) / 2
+                body_y = title_y + title_height + 40
+                draw.multiline_text((body_x, body_y), wrapped_body, font=body_font, fill="white", align="center", spacing=15)
                 
                 with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as temp_file:
                     img.save(temp_file.name, "PNG")
