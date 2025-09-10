@@ -18,8 +18,8 @@ class ImagePostGeneratorService:
         base_image_path: str, 
         text: str, 
         title: str, 
-        title_font_size: int = 110, 
-        body_font_size: int = 75
+        title_font_size: int = 75, 
+        body_font_size: int = 40
     ) -> str | None:
         try:
             with Image.open(base_image_path) as img:
