@@ -10,21 +10,15 @@ SPACES_NAME = os.getenv("DO_SPACES_NAME")
 SPACES_REGION = os.getenv("DO_SPACES_REGION")
 SPACES_ENDPOINT_URL = os.getenv("DO_SPACES_ENDPOINT_URL")
 
-# --- A private, global variable to hold the client instance (Singleton) ---
 _client = None
 
 def get_client():
-    """
-    Creates and returns a boto3 client for DigitalOcean Spaces.
-    Uses a singleton pattern to ensure only one client is created per session.
-    This is "lazy loaded" - it only connects when first called.
-    """
+    """Creates and returns a boto3 client for DigitalOcean Spaces."""
     global _client
     if _client is None:
         print("   - Creating new S3 client for Spaces...")
         if not all([SPACES_KEY, SPACES_SECRET, SPACES_NAME, SPACES_REGION, SPACES_ENDPOINT_URL]):
             print("   - ❌ Critical Error: Missing one or more DigitalOcean Spaces environment variables.")
-            # We don't raise an exception here, so the app can start, but functions will fail gracefully.
             return None
         
         session = boto3.session.Session()
@@ -37,13 +31,22 @@ def get_client():
     return _client
 
 def upload_file(file_path, object_name):
-    """Upload a file to the configured Spaces bucket."""
+    """Upload a file to the configured Spaces bucket and set it to be publicly readable."""
     client = get_client()
     if not client: return None
     
     try:
-        client.upload_file(file_path, SPACES_NAME, object_name)
-        print(f"   - ✅ File '{object_name}' uploaded successfully to Spaces.")
+        # --- THE FIX: Add ExtraArgs to make the file public ---
+        client.upload_file(
+            file_path,
+            SPACES_NAME,
+            object_name,
+            ExtraArgs={
+                'ACL': 'public-read'
+            }
+        )
+        print(f"   - ✅ File '{object_name}' uploaded and set to public-read.")
+        # Construct the public URL
         return f"{SPACES_ENDPOINT_URL}/{SPACES_NAME}/{object_name}"
     except FileNotFoundError:
         print(f"   - ❌ The file to upload was not found at '{file_path}'.")
