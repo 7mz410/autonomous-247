@@ -22,7 +22,6 @@ class MainOrchestrator:
         self.web_search_service = WebSearchService()
         self.video_producer = VideoProducerService(kill_switch=self.kill_switch)
         self.image_post_generator = ImagePostGeneratorService()
-        # --- FIX: Pass the web_search_service to the ContentGeneratorService constructor ---
         self.content_generator = ContentGeneratorService(web_search_service=self.web_search_service)
         
         # --- Initialize Platform Services ---
@@ -35,8 +34,11 @@ class MainOrchestrator:
         self.astrology_service = AstrologyService(
             content_generator=self.content_generator, image_post_generator=self.image_post_generator
         )
+        # --- THIS IS THE FIX: Pass the missing 'image_post_generator' service ---
         self.instagram_service = InstagramService(
-            content_generator=self.content_generator, image_generator=self.video_producer
+            content_generator=self.content_generator, 
+            image_generator=self.video_producer,
+            image_post_generator=self.image_post_generator
         )
         
         # --- Initialize the Automation Scheduler ---

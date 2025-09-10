@@ -67,19 +67,20 @@ class AstrologyService:
             base_image_path = self._get_royalty_free_image(image_query, sign)
             if not base_image_path: continue
             
-            # --- CHANGE: Pass large font sizes specifically for astrology posts ---
             final_post_url = self.image_post_generator.create_post_image(
                 base_image_path=base_image_path, 
                 text=raw_data.get('description'), 
                 title=sign.capitalize(),
-                title_font_size=160, # Much larger title (zodiac sign)
-                body_font_size=90    # Larger body text (description)
+                title_font_size=160,
+                body_font_size=90
             )
             
             if final_post_url:
                 all_posts.append({"sign": sign, "url": final_post_url, "caption": caption})
             
-            if os.path.exists(base_item_path): os.remove(base_item_path)
+            # --- THIS IS THE FIX: Changed 'base_item_path' to 'base_image_path' ---
+            if base_image_path and os.path.exists(base_image_path):
+                os.remove(base_image_path)
         
         print(f"\n✨ --- Process Complete! Generated {len(all_posts)} posts. --- ✨")
         return all_posts
