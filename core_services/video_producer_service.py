@@ -25,8 +25,6 @@ class VideoProducerService:
         self.kill_switch = kill_switch
         self.fps = 24
 
-        # --- No longer creating local directories, using temp files instead ---
-
         self.stability_api_key = STABILITY_AI_API_KEY
         self.stability_api_url = "https://api.stability.ai/v2beta/stable-image/generate/ultra"
         if not self.stability_api_key or "sk-" not in self.stability_api_key:
@@ -59,12 +57,10 @@ class VideoProducerService:
                 response = requests.post(self.stability_api_url, headers=headers, files=files, timeout=30)
                 response.raise_for_status()
 
-                # --- NEW: Save to a temporary local file ---
                 with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as temp_file:
                     temp_file.write(response.content)
                     local_path = temp_file.name
                 
-                # --- NEW: Upload the temporary file to Spaces ---
                 object_name = f"generated_images/image_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{i}.png"
                 storage_service.upload_file(local_path, object_name)
                 
@@ -76,7 +72,7 @@ class VideoProducerService:
         return local_image_paths
 
     def produce_complete_video(self, content, voice_type="female_voice", aspect_ratio="16:9", image_source="ai_generated"):
-        local_temp_files = [] # Keep track of all local files to clean up
+        local_temp_files = [] 
         try:
             if self.kill_switch.is_set(): raise InterruptedException("Operation cancelled before start.")
             
@@ -98,25 +94,26 @@ class VideoProducerService:
             local_temp_files.extend(image_paths)
 
             intro = self._create_intro_clip(duration=3, resolution=target_resolution)
-            content_clips = self._create_content_clips_from _images(image_paths, main_audio.duration, resolution=target_resolution)
+            
+            # --- THIS IS THE FIX ---
+            content_clips = self._create_content_clips_from_images(image_paths, main_audio.duration, resolution=target_resolution)
+            
             outro = self._create_outro_clip(duration=5, resolution=target_resolution)
 
             final_content_video = concatenate_videoclips(content_clips, method="compose").set_audio(main_audio)
             final_video = concatenate_videoclips([intro, final_content_video, outro])
             final_video_with_music = self._add_background_music(final_video)
             
-            # --- NEW: Save final video to a temporary local file ---
             with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as temp_file:
                 output_filepath = temp_file.name
 
             print(f"💾 Rendering final video to temporary path: {output_filepath}")
             final_video_with_music.write_videofile(output_filepath, fps=self.fps, codec='libx264', audio_codec='aac', threads=4)
             
-            # --- NEW: Upload the final video to Spaces ---
             object_name = f"generated_videos/video_{datetime.now().strftime('%Y%m%d_%H%M%S')}.mp4"
             storage_service.upload_file(output_filepath, object_name)
 
-            return output_filepath # Return the local path for YouTubeService to use
+            return output_filepath 
         
         except Exception as e:
             import traceback
@@ -124,7 +121,6 @@ class VideoProducerService:
             traceback.print_exc()
             return None
         finally:
-            # --- NEW: Clean up all temporary local files ---
             print("   - Cleaning up temporary local files...")
             for f in local_temp_files:
                 if os.path.exists(f):
@@ -137,12 +133,10 @@ class VideoProducerService:
         try:
             if gTTS:
                 tts = gTTS(text=cleaned_script, lang='en', slow=False)
-                # --- NEW: Save to a temporary local file ---
                 with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as temp_file:
                     filepath = temp_file.name
                     tts.save(filepath)
 
-                # --- NEW: Upload the audio file to Spaces ---
                 object_name = f"generated_audio/audio_{datetime.now().strftime('%Y%m%d_%H%M%S')}.mp3"
                 storage_service.upload_file(filepath, object_name)
 
@@ -155,7 +149,6 @@ class VideoProducerService:
             print(f"   - ❌ Error during gTTS audio synthesis: {e}")
             return None
             
-    # --- Helper methods (no changes needed) ---
     def _create_intro_clip(self, duration, resolution):
         logo_path = os.path.join(ASSETS_PATH, "visual_identity/intro_logo.png")
         background = ColorClip(size=resolution, color=(13, 17, 23), duration=duration)
@@ -170,7 +163,8 @@ class VideoProducerService:
             return ImageClip(outro_path).set_duration(duration).resize(resolution)
         return ColorClip(size=resolution, color=(13, 17, 23), duration=duration)
 
-    def _create_content_clips_from _images(self, images, audio_duration, resolution):
+    # --- THIS IS THE SECOND PART OF THE FIX ---
+    def _create_content_clips_from_images(self, images, audio_duration, resolution):
         if not images:
             return [ColorClip(size=resolution, color=(0, 0, 0), duration=audio_duration)]
         clips = []
