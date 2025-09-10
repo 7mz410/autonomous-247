@@ -2,20 +2,18 @@
 import threading
 from utils.exceptions import InterruptedException
 
-# Notice: All service imports are removed from the top level to be lazy-loaded.
+# --- FIX: All service imports moved to the top level ---
+from core_services.content_generator_service import ContentGeneratorService
+from core_services.video_producer_service import VideoProducerService
+from core_services.web_search_service import WebSearchService
+from core_services.image_post_generator_service import ImagePostGeneratorService
+from platform_services.youtube_service import YouTubeService
+from platform_services.linkedin_service import LinkedInService
+from platform_services.instagram_service import InstagramService
+from orchestration.automation_scheduler import AutomationScheduler
 
 class MainOrchestrator:
     def __init__(self):
-        # --- LAZY LOADING: This breaks circular dependencies during initialization ---
-        from core_services.content_generator_service import ContentGeneratorService
-        from core_services.video_producer_service import VideoProducerService
-        from core_services.web_search_service import WebSearchService
-        from core_services.image_post_generator_service import ImagePostGeneratorService
-        from platform_services.youtube_service import YouTubeService
-        from platform_services.linkedin_service import LinkedInService
-        from platform_services.instagram_service import InstagramService
-        from orchestration.automation_scheduler import AutomationScheduler
-
         print("Initializing the Main Orchestrator...")
         
         self.kill_switch = threading.Event()
@@ -24,6 +22,8 @@ class MainOrchestrator:
         self.web_search_service = WebSearchService()
         self.video_producer = VideoProducerService(kill_switch=self.kill_switch)
         self.image_post_generator = ImagePostGeneratorService()
+        # This next line is where the original error likely stems from.
+        # It depends on ContentGeneratorService, which might depend back on the orchestrator.
         self.content_generator = ContentGeneratorService(web_search_service=self.web_search_service)
         
         # --- Initialize Platform Services ---
