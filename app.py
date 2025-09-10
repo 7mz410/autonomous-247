@@ -32,6 +32,7 @@ def initialize_session_state():
 initialize_session_state()
 
 def handle_linkedin_auth():
+    # (This function remains unchanged)
     auth_code = st.query_params.get("code")
     if auth_code and not st.session_state.linkedin_authenticated:
         with st.spinner("Finalizing LinkedIn connection..."):
@@ -60,7 +61,6 @@ if st.session_state.is_generating:
         orchestrator.trigger_kill_switch()
         st.warning("Stop signal sent! The process will halt gracefully at the next step...")
 else:
-    # --- CHANGE: Add "Instagram Post" to the list of options ---
     content_type = st.selectbox(
         "1. Select a Task:",
         ("YouTube Video", "Instagram Post", "LinkedIn Post", "Astrology Daily Posts"),
@@ -74,13 +74,9 @@ else:
             st.session_state.current_task_message = "Generating 12 Astrology Posts..."
             orchestrator.reset_kill_switch()
             with st.spinner("Generating posts... This may take several minutes."):
-                posts = orchestrator.generate_all_astrology_posts()
+                # --- CHANGE: The result is now stored in last_result directly ---
+                st.session_state.last_result = orchestrator.generate_all_astrology_posts()
             
-            # The result for astrology is a list, so we handle it slightly differently
-            if posts is not None:
-                st.session_state.last_result = {"success": True, "message": f"Successfully generated {len(posts)} astrology posts!"}
-            else:
-                st.session_state.last_result = {"success": False, "message": "Astrology post generation failed or was cancelled."}
             st.session_state.is_generating = False
             st.rerun()
     else:
@@ -96,22 +92,54 @@ else:
             with st.spinner(st.session_state.current_task_message):
                 if content_type == "YouTube Video":
                     result = orchestrator.generate_single_youtube_video(topic=topic, niche=niche, auto_search_context=auto_search)
-                # --- CHANGE: Add the logic for the new Instagram Post option ---
                 elif content_type == "Instagram Post":
                     result = orchestrator.generate_single_instagram_post(topic=topic, niche=niche)
+                # Note: LinkedIn post generation can be added here later
 
             st.session_state.last_result = result
             st.session_state.is_generating = False
             st.rerun()
 
+# --- NEW: Enhanced results display section ---
 if st.session_state.last_result:
-    res = st.session_state.last_result
-    if res.get("success"):
-        st.success(res.get("message", "Operation completed successfully!"))
-        if res.get("path"):
-            st.info(f"Output file is available at: {res['path']}")
-    else:
-        st.error(res.get("message", "An unknown error occurred."))
+    st.divider()
+    st.header("Generation Results")
+
+    result_data = st.session_state.last_result
+
+    # Handle the list of astrology posts
+    if isinstance(result_data, list):
+        if result_data:
+            st.success(f"Successfully generated {len(result_data)} astrology posts!")
+            # Display results in three columns
+            cols = st.columns(3)
+            col_index = 0
+            for post in result_data:
+                with cols[col_index]:
+                    st.subheader(post.get('sign', 'Unknown Sign').capitalize())
+                    st.image(post.get('url'), use_column_width=True)
+                    st.link_button("Download Post 📥", post.get('url'))
+                    with st.expander("View Caption"):
+                        st.text_area("", value=post.get('caption', 'No caption available.'), height=150, key=f"caption_{post.get('sign')}")
+                col_index = (col_index + 1) % 3
+        else:
+            st.error("Astrology post generation failed or was cancelled.")
+
+    # Handle single post results (YouTube, Instagram, etc.)
+    elif isinstance(result_data, dict):
+        if result_data.get("success"):
+            st.success(result_data.get("message", "Operation completed successfully!"))
+            # Display image/video if a URL is available
+            if result_data.get("url"): # Check for a public URL
+                st.image(result_data.get("url"))
+                st.link_button("Download File 📥", result_data.get("url"))
+            elif result_data.get("path"): # Fallback for local path (useful for video files)
+                st.info(f"Output file is available at: {result_data['path']}")
+
+        else:
+            st.error(result_data.get("message", "An unknown error occurred."))
+    
+    # Clear the result after displaying it
     st.session_state.last_result = None
 
 # --- The rest of the file (Automation Settings & LinkedIn) remains the same ---
