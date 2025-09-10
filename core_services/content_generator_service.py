@@ -1,125 +1,141 @@
 # src/core_services/content_generator_service.py
 
-import json
 import os
+import json
 import tempfile
 from datetime import datetime
 from typing import TYPE_CHECKING
 from utils import storage_service
+from config import OPENAI_API_KEY
 
-# This block allows for type hinting without causing circular import errors.
-# It's a best practice for complex applications like this.
+try:
+    from openai import OpenAI
+except ImportError:
+    OpenAI = None
+
+# This allows for type hinting without causing circular import errors.
 if TYPE_CHECKING:
     from core_services.web_search_service import WebSearchService
 
-# NOTE: You would have an OpenAI client import here, for example:
-# from openai import OpenAI
-
 class ContentGeneratorService:
     """
-    Handles all interactions with AI models for content creation,
-    including video scripts, social media posts, and captions.
+    Handles all interactions with AI models for content creation.
+    MERGED: Now includes AI-powered astrology generation and general content creation.
     """
     
-    # --- FIX: Added the __init__ constructor which was missing. ---
+    # --- FIX: The constructor now takes web_search_service again AND initializes OpenAI client ---
     def __init__(self, web_search_service: 'WebSearchService'):
         self.web_search_service = web_search_service
-        # --- The OpenAI client would be initialized here ---
-        # self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-        print("✅ Content Generator Service initialized.")
+        
+        if not OPENAI_API_KEY or not OpenAI:
+            self.client = None
+            print("❌ Critical Error: OPENAI_API_KEY not found or openai library not installed.")
+        else:
+            try:
+                self.client = OpenAI(api_key=OPENAI_API_KEY)
+                print("✅ OpenAI client configured successfully.")
+            except Exception as e:
+                self.client = None
+                print(f"❌ Critical Error configuring OpenAI client: {e}")
 
-    def _generate_content_with_openai(self, prompt: str) -> str | None:
-        """
-        A private helper method to interact with the OpenAI API.
-        This is a placeholder for your actual OpenAI API call logic.
-        """
+    def _generate_content_with_openai(self, prompt: str, system_message: str = "You are a helpful assistant.") -> str | None:
+        """A centralized private method to interact with the OpenAI API."""
+        if not self.client:
+            print("   - ❌ OpenAI client not available. Cannot generate content.")
+            return None
+        
         print(f"   - 🤖 Calling LLM with prompt: '{prompt[:60]}...'")
         try:
-            # --- THIS IS WHERE YOUR API CALL WOULD GO ---
-            # response = self.client.chat.completions.create(
-            #     model="gpt-4o",
-            #     messages=[{"role": "system", "content": prompt}],
-            #     response_format={"type": "json_object"}
-            # )
-            # return response.choices[0].message.content
-            
-            # --- Returning a dummy response for now ---
-            dummy_response = {
-                "title": "This is a placeholder title",
-                "description": "This is a placeholder description.",
-                "tags": ["tag1", "placeholder"],
-                "script": {"Part 1": "Hello from the placeholder script."},
-                "image_prompts": ["a placeholder image prompt"],
-                "post_text": "This is placeholder text for a social media post.",
-                "hashtags": ["#placeholder", "#example"],
-                "image_prompt": "A single placeholder image prompt."
-            }
-            return json.dumps(dummy_response)
-
+            response = self.client.chat.completions.create(
+                model="gpt-4o",
+                messages=[
+                    {"role": "system", "content": system_message},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.7,
+                response_format={"type": "json_object"}
+            )
+            return response.choices[0].message.content.strip()
         except Exception as e:
-            print(f"   - ❌ An error occurred with the OpenAI API call: {e}")
+            print(f"❌ Error during OpenAI API call: {e}")
             return None
 
+    # --- NEW: AI-powered astrology data generation ---
+    def generate_astrology_data(self, zodiac_sign: str) -> dict | None:
+        print(f"   - 🔮 Generating AI astrological data for {zodiac_sign}...")
+        prompt = f"""
+        Generate a fictional but believable daily horoscope for the zodiac sign: {zodiac_sign.capitalize()}.
+        The output MUST be a single, valid JSON object with these exact keys:
+        - "description": A 1-2 sentence inspiring horoscope.
+        - "mood": A single word describing the primary mood.
+        - "lucky_number": A random number between 1 and 100.
+        - "color": A lucky color for the day.
+        """
+        system_msg = "You are a creative, insightful, and positive astrologer."
+        json_string = self._generate_content_with_openai(prompt, system_message=system_msg)
+        if not json_string: return None
+        try:
+            data = json.loads(json_string)
+            data['sign'] = zodiac_sign
+            return data
+        except Exception as e:
+            print(f"   - ❌ Failed to parse astrology data for {zodiac_sign}: {e}")
+            return None
+
+    # --- UPDATED: AI-powered astrology caption generation ---
+    def create_astrology_caption(self, astro_data: dict) -> str:
+        print("   - ✍️ Crafting an engaging astrology caption...")
+        prompt = f"""
+        You have this data for {astro_data.get('sign', 'a zodiac sign')}:
+        - Vibe: {astro_data.get('description')}
+        - Mood: {astro_data.get('mood')}
+        - Lucky Color: {astro_data.get('color')}
+        Transform this into a short, beautiful Instagram caption and provide hashtags.
+        The entire output MUST be a single, valid JSON object with keys "caption" and "hashtags".
+        """
+        system_msg = "You are a mystical and positive social media manager."
+        json_string = self._generate_content_with_openai(prompt, system_message=system_msg)
+        if not json_string:
+            return f"{astro_data.get('description')}\n\n#astrology #horoscope #{astro_data.get('sign')}"
+        try:
+            data = json.loads(json_string)
+            final_caption = data.get('caption', astro_data.get('description'))
+            hashtags_str = " ".join(data.get('hashtags', []))
+            return f"{final_caption}\n\n{hashtags_str}"
+        except Exception as e:
+            print(f"   - ❌ Error generating caption: {e}. Falling back to default.")
+            return f"{astro_data.get('description')}\n\n#astrology #horoscope #{astro_data.get('sign')}"
+
+    # --- RE-ADDED: Method for YouTube videos ---
     def generate_complete_video_content(self, topic, niche="Technology", auto_search_context=False):
         context = None
-        if auto_search_context:
+        if auto_search_context and self.web_search_service:
             context = self.web_search_service.search_and_extract_context(topic)
             if not context:
-                print("   - ⚠️ Proceeding with generation without web context. Quality may be lower.")
+                print("   - ⚠️ Proceeding without web context. Quality may be lower.")
 
-        print(f"📝 Generating video content for topic: {topic}...")
-        prompt = f"You are an expert-level YouTube scriptwriter for a '{niche}' channel. Generate a complete content package for a video on: '{topic}'."
+        prompt = f"You are a YouTube scriptwriter for a '{niche}' channel. Generate a content package for a video on: '{topic}'."
         if context:
-            prompt += f"\n\n*** CRITICAL INSTRUCTION ***\nYou MUST base your script, title, and image prompts on the following context. Use this text as your single source of truth.\n\nCONTEXT:\n---\n{context[:4000]}\n---"
-        prompt += '\nThe final output MUST be a single, valid JSON object with these exact keys: "title", "description", "tags", "script", "image_prompts".'
-
-        json_string = self._generate_content_with_openai(prompt)
+            prompt += f"\n\nCONTEXT:\n---\n{context[:4000]}\n---"
+        prompt += '\nThe final output MUST be a single, valid JSON object with keys: "title", "description", "tags", "script", "image_prompts".'
         
-        if not json_string:
-            raise Exception("AI service returned an empty response.")
+        json_string = self._generate_content_with_openai(prompt, "You are an expert-level YouTube content creator.")
+        if not json_string: raise Exception("AI service returned an empty response.")
         
         try:
             content_data = json.loads(json_string)
-            
-            with tempfile.NamedTemporaryFile(delete=False, mode='w', suffix=".json", encoding='utf-8') as temp_file:
-                json.dump(content_data, temp_file, ensure_ascii=False, indent=2)
-                local_path = temp_file.name
-
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            object_name = f"generated_content/youtube_content_{timestamp}.json"
-            storage_service.upload_file(local_path, object_name)
-            os.remove(local_path)
-
-            print(f"✅ Deep content generated and archived to Spaces.")
             return content_data
         except json.JSONDecodeError as e:
-            print(f"   - RAW RESPONSE from AI: {json_string}")
             raise Exception(f"Failed to parse JSON from AI. Error: {e}")
 
-    # --- FIX: Added the missing method used by InstagramService ---
-    def create_astrology_caption(self, raw_data: dict) -> str:
-        """Generates a creative caption based on raw astrology data."""
-        sign = raw_data.get('sign', 'the stars')
-        description = raw_data.get('description', 'a mysterious message')
-        mood = raw_data.get('mood', 'cosmic')
-        
-        prompt = f"You are a mystical astrologer. Write a short, engaging, and slightly poetic Instagram caption for {sign}. The horoscope says: '{description}'. The mood is '{mood}'. The caption should be 2-3 sentences and end with relevant hashtags."
-        
-        # NOTE: This uses the same generic OpenAI call. You could customize it further.
-        response_text = self._generate_content_with_openai(prompt)
-        # For a simple text response, we might need to parse it differently
-        # For now, let's just return a placeholder.
-        return f"A caption for {sign}: {description} #astrology #{sign}"
-
-    # --- FIX: Added the missing method used by LinkedInService ---
+    # --- RE-ADDED: Method for LinkedIn/Instagram posts ---
     def generate_social_post_content(self, topic: str, niche: str, platform: str) -> dict | None:
-        """Generates a complete content package for a social media post."""
-        prompt = f"You are a social media expert for the '{niche}' niche. Generate a content package for a {platform} post on: '{topic}'. The final output MUST be a single, valid JSON object with these exact keys: 'post_text', 'hashtags', 'image_prompt'."
+        prompt = f"You are a social media expert for the '{niche}' niche. Generate a content package for a {platform} post on: '{topic}'. The final output MUST be a single, valid JSON object with keys: 'post_text', 'hashtags', 'image_prompt'."
         
-        json_string = self._generate_content_with_openai(prompt)
+        json_string = self._generate_content_with_openai(prompt, f"You are a social media expert for {platform}.")
         if json_string:
             try:
                 return json.loads(json_string)
             except json.JSONDecodeError:
                 return None
-        return None
+        return None```
