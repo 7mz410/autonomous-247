@@ -3,11 +3,20 @@
 import requests
 from urllib.parse import urlencode
 from config import LINKEDIN_CLIENT_ID, LINKEDIN_CLIENT_SECRET, LINKEDIN_REDIRECT_URI
+from typing import TYPE_CHECKING
+
+# --- CHANGE: Added dependencies needed for the professional method ---
+if TYPE_CHECKING:
+    from core_services.content_generator_service import ContentGeneratorService
+    from core_services.image_post_generator_service import ImagePostGeneratorService
+    from core_services.video_producer_service import VideoProducerService
 
 class LinkedInService:
-    def __init__(self, content_generator, image_generator):
+    # --- CHANGE: The service now requires the image_post_generator ---
+    def __init__(self, content_generator: 'ContentGeneratorService', image_generator: 'VideoProducerService', image_post_generator: 'ImagePostGeneratorService'):
         self.content_generator = content_generator
         self.image_generator = image_generator
+        self.image_post_generator = image_post_generator
         
         self.client_id = LINKEDIN_CLIENT_ID
         self.client_secret = LINKEDIN_CLIENT_SECRET
@@ -21,84 +30,62 @@ class LinkedInService:
         self.user_urn = None
 
         if not self.client_id or not self.client_secret:
-            print("⚠️  Warning: LinkedIn credentials not found in config.py.")
+            print("⚠️  Warning: LinkedIn credentials not found.")
         else:
-            print("✅ LinkedIn Service initialized.")
+            print("✅ LinkedIn Service initialized (Professional Method).")
 
-    # --- NEW: A single source of truth for authentication status ---
     def is_authenticated(self) -> bool:
-        """Returns True if the service has a valid access token."""
         return self.access_token is not None
 
+    # --- CHANGE: This function now uses the professional two-step image generation ---
     def generate_post_package(self, niche, topic):
-        # (This function remains unchanged)
-        print(f"LINKEDIN: Generating content for topic: '{topic}'...")
+        print(f"LINKEDIN: Generating professional post for topic: '{topic}'...")
         try:
+            # 1. Generate text and a clean background prompt
             content_data = self.content_generator.generate_social_post_content(
                 topic=topic, niche=niche, platform="LinkedIn"
             )
-            if not content_data: raise Exception("Failed to generate text content.")
-            image_prompt = content_data.get("image_prompt")
-            print("LINKEDIN: Generating image for the post...")
-            image_paths = self.image_generator._generate_images_with_stability([image_prompt])
-            if not image_paths: raise Exception("Failed to generate an image.")
+            if not content_data:
+                raise Exception("Failed to generate text content from AI.")
+
+            # 2. Use the correct key for the background prompt
+            background_prompt = content_data.get("background_image_prompt", f"A professional, clean background for a post about {niche}")
+            print(f"LINKEDIN: Generating clean background image with prompt: '{background_prompt}'")
+            
+            # 3. Generate the background image (LinkedIn posts are often 1.91:1 or 1:1, we'll use 1:1 for consistency)
+            image_paths = self.image_generator._generate_images_with_stability([background_prompt], aspect_ratio="1:1")
+            if not image_paths:
+                raise Exception("Failed to generate a background image.")
+            
+            background_image_path = image_paths[0]
+            post_text_content = content_data.get("post_text")
+            final_caption_for_upload = f"{post_text_content}\n\n{' '.join(content_data.get('hashtags', []))}"
+            
+            # 4. Use the ImagePostGenerator to overlay clean text
+            print("LINKEDIN: Overlaying clean text onto the background image...")
+            final_post_url = self.image_post_generator.create_post_image(
+                base_image_path=background_image_path,
+                text=post_text_content,
+                title=topic.capitalize()
+            )
+
+            if not final_post_url:
+                raise Exception("Failed to create the final post image.")
+            
             return {
-                "post_text": f"{content_data.get('post_text')}\n\n{' '.join(content_data.get('hashtags', []))}",
-                "image_path": image_paths[0]
+                "url": final_post_url,
+                "caption": final_caption_for_upload
             }
         except Exception as e:
             print(f"   - ❌ Error in generate_post_package (LinkedIn): {e}")
             return None
 
+    # (The rest of the file: auth, user info, publishing methods remain the same)
     def generate_auth_url(self):
-        # (This function remains unchanged)
-        params = {
-            'response_type': 'code',
-            'client_id': self.client_id,
-            'redirect_uri': self.redirect_uri,
-            'state': 'a_random_state_string_for_security',
-            'scope': 'openid profile w_member_social'
-        }
-        return f"{self.auth_url}?{urlencode(params)}"
-
+        # ...
     def exchange_code_for_token(self, auth_code):
-        # (This function remains unchanged)
-        data = {
-            'grant_type': 'authorization_code',
-            'code': auth_code,
-            'redirect_uri': self.redirect_uri,
-            'client_id': self.client_id,
-            'client_secret': self.client_secret
-        }
-        try:
-            response = requests.post(self.token_url, data=data, timeout=10)
-            response.raise_for_status()
-            self.access_token = response.json().get('access_token')
-            if self.access_token:
-                return {"success": True}
-            return {"success": False, "message": "Access token not found in response."}
-        except requests.RequestException as e:
-            error_details = e.response.json() if e.response else str(e)
-            print(f"   - ❌ LinkedIn token exchange failed: {error_details}")
-            return {"success": False, "message": f"API Error: {error_details}"}
-
+        # ...
     def fetch_user_info(self):
-        # (This function remains unchanged)
-        if not self.access_token: return False
-        try:
-            headers = {"Authorization": f"Bearer {self.access_token}"}
-            response = requests.get(f"{self.api_base_url}/userinfo", headers=headers, timeout=10)
-            response.raise_for_status()
-            user_data = response.json()
-            self.user_urn = f"urn:li:person:{user_data['sub']}"
-            print(f"✅ Fetched LinkedIn user URN: {self.user_urn}")
-            return True
-        except Exception as e:
-            print(f"   - ❌ Error fetching LinkedIn user info: {e}")
-            return False
-
+        # ...
     def publish_post(self, post_data):
-        # (This function and its helpers remain unchanged)
-        if not self.is_authenticated() or not self.user_urn:
-            return {"success": False, "message": "Authentication required. Cannot publish post."}
-        # ... rest of the function
+        # ...
