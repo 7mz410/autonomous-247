@@ -19,9 +19,9 @@ def get_orchestrator():
 
 orchestrator = get_orchestrator()
 
+# --- CHANGE: Removed 'linkedin_authenticated' from the session state ---
 def initialize_session_state():
     defaults = {
-        'linkedin_authenticated': False,
         'is_generating': False,
         'current_task_message': "",
         'last_result': None
@@ -31,23 +31,26 @@ def initialize_session_state():
             st.session_state[key] = value
 initialize_session_state()
 
+# --- CHANGE: This function no longer manages session state directly ---
 def handle_linkedin_auth():
-    # (This function remains unchanged)
     auth_code = st.query_params.get("code")
-    if auth_code and not st.session_state.linkedin_authenticated:
+    # Only run this logic ONCE when the user is redirected back from LinkedIn
+    if auth_code and not orchestrator.linkedin_service.is_authenticated():
         with st.spinner("Finalizing LinkedIn connection..."):
             token_response = orchestrator.linkedin_service.exchange_code_for_token(auth_code)
             if token_response and token_response.get("success"):
                 if orchestrator.linkedin_service.fetch_user_info():
-                    st.session_state.linkedin_authenticated = True
                     st.success("✅ LinkedIn connected successfully!")
+                    # Clear the code from the URL to prevent re-running this block
                     st.query_params.clear()
                 else:
                     st.error("Authentication succeeded, but failed to fetch user profile.")
             else:
                 error_msg = token_response.get('message', 'An unknown error occurred.')
                 st.error(f"Connection failed: {error_msg}")
+        # Stop execution for this run to allow a clean rerun after clearing query_params
         st.stop()
+
 handle_linkedin_auth()
 
 st.title("Autonomous 247 Content Hub 🤖")
@@ -74,16 +77,20 @@ else:
             st.session_state.current_task_message = "Generating 12 Astrology Posts..."
             orchestrator.reset_kill_switch()
             with st.spinner("Generating posts... This may take several minutes."):
-                # --- CHANGE: The result is now stored in last_result directly ---
                 st.session_state.last_result = orchestrator.generate_all_astrology_posts()
             
             st.session_state.is_generating = False
             st.rerun()
     else:
+        # This logic is for YouTube, Instagram, and LinkedIn posts
         niche = st.text_input("2. Enter Niche:", placeholder="e.g., Artificial Intelligence, Health & Wellness", key="ti_niche")
         topic = st.text_input("3. Enter a Topic:", placeholder="e.g., The Future of Generative AI", key="ti_topic")
-        auto_search = st.toggle("Enable Autonomous Research", value=True, help="Allows the AI to search the web for context before generating.")
         
+        # Specific options based on content type
+        auto_search = False
+        if content_type == "YouTube Video":
+             auto_search = st.toggle("Enable Autonomous Research", value=True, help="Allows the AI to search the web for context before generating.")
+
         if st.button(f"🚀 Generate {content_type}", use_container_width=True, type="primary", disabled=(not topic or not niche)):
             st.session_state.is_generating = True
             st.session_state.current_task_message = f"Generating {content_type} on '{topic}'..."
@@ -94,24 +101,20 @@ else:
                     result = orchestrator.generate_single_youtube_video(topic=topic, niche=niche, auto_search_context=auto_search)
                 elif content_type == "Instagram Post":
                     result = orchestrator.generate_single_instagram_post(topic=topic, niche=niche)
-                # Note: LinkedIn post generation can be added here later
+                # We will add LinkedIn post generation here later
 
             st.session_state.last_result = result
             st.session_state.is_generating = False
             st.rerun()
 
-# --- NEW: Enhanced results display section ---
+# Enhanced results display section
 if st.session_state.last_result:
     st.divider()
     st.header("Generation Results")
-
     result_data = st.session_state.last_result
-
-    # Handle the list of astrology posts
     if isinstance(result_data, list):
         if result_data:
             st.success(f"Successfully generated {len(result_data)} astrology posts!")
-            # Display results in three columns
             cols = st.columns(3)
             col_index = 0
             for post in result_data:
@@ -124,28 +127,20 @@ if st.session_state.last_result:
                 col_index = (col_index + 1) % 3
         else:
             st.error("Astrology post generation failed or was cancelled.")
-
-    # Handle single post results (YouTube, Instagram, etc.)
     elif isinstance(result_data, dict):
         if result_data.get("success"):
             st.success(result_data.get("message", "Operation completed successfully!"))
-            # Display image/video if a URL is available
-            if result_data.get("url"): # Check for a public URL
+            if result_data.get("url"):
                 st.image(result_data.get("url"))
                 st.link_button("Download File 📥", result_data.get("url"))
-            elif result_data.get("path"): # Fallback for local path (useful for video files)
+            elif result_data.get("path"):
                 st.info(f"Output file is available at: {result_data['path']}")
-
         else:
             st.error(result_data.get("message", "An unknown error occurred."))
-    
-    # Clear the result after displaying it
     st.session_state.last_result = None
 
-# --- The rest of the file (Automation Settings & LinkedIn) remains the same ---
 st.divider()
 with st.expander("⚙️ System Automation & Settings"):
-    # (The content of this expander does not need to be changed)
     st.subheader("System Dashboard")
     status_data = orchestrator.get_automation_status()
     stats = status_data.get('stats', {})
@@ -159,6 +154,7 @@ with st.expander("⚙️ System Automation & Settings"):
         c5.metric("Next Scheduled Run", datetime.fromisoformat(next_run.split('.')[0]).strftime('%a, %H:%M'))
     else:
         c5.metric("Next Scheduled Run", next_run)
+
     st.subheader("Automated Mode (YouTube Only)")
     col1_auto, col2_auto = st.columns(2)
     with col1_auto:
@@ -171,6 +167,7 @@ with st.expander("⚙️ System Automation & Settings"):
             orchestrator.stop_automation()
             st.toast("Automation scheduler stopped.")
             st.rerun()
+
     st.subheader("Automation Settings")
     current_settings = orchestrator.scheduler.settings 
     with st.form("settings_form"):
@@ -184,8 +181,10 @@ with st.expander("⚙️ System Automation & Settings"):
             orchestrator.update_automation_settings(new_settings)
             st.toast("Settings saved successfully!")
             st.rerun()
+
     st.subheader("🔗 Connect Social Accounts")
-    if st.session_state.linkedin_authenticated:
+    # --- CHANGE: The check for authentication now calls the service directly ---
+    if orchestrator.linkedin_service.is_authenticated():
         st.success("✅ Connected to LinkedIn!")
     else:
         auth_url = orchestrator.linkedin_service.generate_auth_url()
