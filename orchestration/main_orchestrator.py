@@ -34,7 +34,6 @@ class MainOrchestrator:
         self.astrology_service = AstrologyService(
             content_generator=self.content_generator, image_post_generator=self.image_post_generator
         )
-        # --- THIS IS THE FIX: Pass the missing 'image_post_generator' service ---
         self.instagram_service = InstagramService(
             content_generator=self.content_generator, 
             image_generator=self.video_producer,
@@ -69,6 +68,30 @@ class MainOrchestrator:
             return {"success": False, "message": "Operation Cancelled by User."}
         except Exception as e:
             print(f"ORCHESTRATOR: Critical error during Instagram post generation: {e}")
+            return {"success": False, "message": "A critical internal error occurred."}
+            
+    # --- NEW: Added the missing function for LinkedIn post generation ---
+    def generate_single_linkedin_post(self, topic: str, niche: str):
+        self.reset_kill_switch()
+        try:
+            # Note: This currently only generates the content, it does not publish it yet.
+            package = self.linkedin_service.generate_post_package(topic=topic, niche=niche)
+            if package and package.get("image_path"):
+                # Since the image is saved to a temp local path, we need to upload it to display it
+                # For simplicity now, we will just return the local path, but this won't show in the UI correctly
+                # A future improvement is to upload this temp file to Spaces and return the URL.
+                return {
+                    "success": True,
+                    "message": "LinkedIn post content generated successfully!",
+                    "path": package.get("image_path"),
+                    "caption": package.get("post_text")
+                }
+            else:
+                return {"success": False, "message": "Failed to generate LinkedIn content package."}
+        except InterruptedException:
+            return {"success": False, "message": "Operation Cancelled by User."}
+        except Exception as e:
+            print(f"ORCHESTRATOR: Critical error during LinkedIn post generation: {e}")
             return {"success": False, "message": "A critical internal error occurred."}
 
     def generate_single_youtube_video(self, topic, niche, upload=True, image_source="ai_generated", auto_search_context=False):

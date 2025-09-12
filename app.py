@@ -19,7 +19,6 @@ def get_orchestrator():
 
 orchestrator = get_orchestrator()
 
-# --- CHANGE: Removed 'linkedin_authenticated' from the session state ---
 def initialize_session_state():
     defaults = {
         'is_generating': False,
@@ -31,24 +30,20 @@ def initialize_session_state():
             st.session_state[key] = value
 initialize_session_state()
 
-# --- CHANGE: This function no longer manages session state directly ---
 def handle_linkedin_auth():
     auth_code = st.query_params.get("code")
-    # Only run this logic ONCE when the user is redirected back from LinkedIn
     if auth_code and not orchestrator.linkedin_service.is_authenticated():
         with st.spinner("Finalizing LinkedIn connection..."):
             token_response = orchestrator.linkedin_service.exchange_code_for_token(auth_code)
             if token_response and token_response.get("success"):
                 if orchestrator.linkedin_service.fetch_user_info():
                     st.success("✅ LinkedIn connected successfully!")
-                    # Clear the code from the URL to prevent re-running this block
                     st.query_params.clear()
                 else:
                     st.error("Authentication succeeded, but failed to fetch user profile.")
             else:
                 error_msg = token_response.get('message', 'An unknown error occurred.')
                 st.error(f"Connection failed: {error_msg}")
-        # Stop execution for this run to allow a clean rerun after clearing query_params
         st.stop()
 
 handle_linkedin_auth()
@@ -82,11 +77,9 @@ else:
             st.session_state.is_generating = False
             st.rerun()
     else:
-        # This logic is for YouTube, Instagram, and LinkedIn posts
         niche = st.text_input("2. Enter Niche:", placeholder="e.g., Artificial Intelligence, Health & Wellness", key="ti_niche")
         topic = st.text_input("3. Enter a Topic:", placeholder="e.g., The Future of Generative AI", key="ti_topic")
         
-        # Specific options based on content type
         auto_search = False
         if content_type == "YouTube Video":
              auto_search = st.toggle("Enable Autonomous Research", value=True, help="Allows the AI to search the web for context before generating.")
@@ -101,13 +94,14 @@ else:
                     result = orchestrator.generate_single_youtube_video(topic=topic, niche=niche, auto_search_context=auto_search)
                 elif content_type == "Instagram Post":
                     result = orchestrator.generate_single_instagram_post(topic=topic, niche=niche)
-                # We will add LinkedIn post generation here later
+                # --- THIS IS THE FIX: Added the missing logic for LinkedIn ---
+                elif content_type == "LinkedIn Post":
+                    result = orchestrator.generate_single_linkedin_post(topic=topic, niche=niche)
 
             st.session_state.last_result = result
             st.session_state.is_generating = False
             st.rerun()
 
-# Enhanced results display section
 if st.session_state.last_result:
     st.divider()
     st.header("Generation Results")
@@ -183,7 +177,6 @@ with st.expander("⚙️ System Automation & Settings"):
             st.rerun()
 
     st.subheader("🔗 Connect Social Accounts")
-    # --- CHANGE: The check for authentication now calls the service directly ---
     if orchestrator.linkedin_service.is_authenticated():
         st.success("✅ Connected to LinkedIn!")
     else:
